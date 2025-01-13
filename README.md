@@ -1,0 +1,1 @@
+"Created a Python-based Budget App that allows users to manage their finances by adding expenses, viewing budget details, and saving/loading data in JSON format, providing an interactive command-line interface."
