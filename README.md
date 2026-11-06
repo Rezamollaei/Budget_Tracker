@@ -38,8 +38,16 @@ Other commands:
 - **Month by month.** A budget carries forward until you change it.
 - **Your data is yours.** Export CSV (opens in Excel / Google Sheets), download and import
   JSON backups. Import also reads `budget_data.json` from the old Python version.
-- Works on phones (add it to your home screen), follows light/dark mode, keyboard shortcut
-  <kbd>/</kbd> to jump to the entry box.
+- **Income.** Switch the entry box to *Income*, or start with `+` (`+salary 2500`). Each month
+  shows Income, Spent and Saved.
+- **What I own.** Cash, bank accounts, savings, gold, investments and other items with their
+  current value, plus your **Splitwise balance** (positive when friends owe you, negative when
+  you owe) and loans/debts. Shows your total net worth and when each value was last updated.
+- **English and Italian.** Switch with EN / IT at the top. Numbers, dates and the entry box follow
+  the language (`caffè 1,50 ieri` works).
+- **Light, dark or automatic theme**, switched with the 🌗 button.
+- Works on phones (add it to your home screen); keyboard shortcut <kbd>/</kbd> jumps to the
+  entry box.
 
 ## Where data is stored
 
@@ -67,6 +75,7 @@ Budget_Tracker.py      the original command-line version (run with `py Budget_Tr
 ## Ideas for later
 
 - Recurring expenses (rent, subscriptions) added automatically each month
+- Automatic Splitwise balance via the Splitwise API (needs a Splitwise login and a small server)
 - Per-category budgets
 - Offline support with a service worker
 - Optional account and sync between devices (needs a backend)

@@ -1,6 +1,6 @@
 import type { AppState, Asset, Expense, Income } from './types'
 import { guessCategory, isCategoryId } from './categories'
-import { isAssetKind } from './assets'
+import { getAssetKind, isAssetKind } from './assets'
 import { isValidISODate, monthKey } from './dates'
 import { roundMoney } from './money'
 
@@ -49,11 +49,12 @@ function toAsset(raw: unknown): Asset | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
   const value = Number(r.value)
-  if (!Number.isFinite(value) || value < 0) return null
+  const kind = isAssetKind(r.kind) ? r.kind : 'other'
+  if (!Number.isFinite(value) || (value < 0 && !getAssetKind(kind).signed)) return null
   return {
     id: typeof r.id === 'string' && r.id ? r.id : newId(),
     name: typeof r.name === 'string' && r.name.trim() ? r.name : 'Untitled',
-    kind: isAssetKind(r.kind) ? r.kind : 'other',
+    kind,
     value: roundMoney(value),
     updatedAt: typeof r.updatedAt === 'number' ? r.updatedAt : Date.now(),
   }

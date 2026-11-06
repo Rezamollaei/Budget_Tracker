@@ -1,36 +1,30 @@
 import type { Asset, AssetKind } from './types'
 import { roundMoney } from './money'
+import { translate, type Lang } from './i18n'
 
 export interface AssetKindInfo {
   id: AssetKind
-  label: string
   emoji: string
   color: string
-  example: string
-  /** Money you owe: subtracted from the total. */
+  /** Money you owe: always subtracted from the total. */
   liability?: boolean
+  /** The value can be positive or negative. */
+  signed?: boolean
 }
 
 export const ASSET_KINDS: AssetKindInfo[] = [
-  { id: 'cash', label: 'Cash', emoji: '💵', color: '#22c55e', example: 'Wallet' },
-  { id: 'bank', label: 'Bank account', emoji: '🏦', color: '#3b82f6', example: 'Main account' },
-  { id: 'savings', label: 'Savings', emoji: '🐖', color: '#ec4899', example: 'Emergency fund' },
-  { id: 'gold', label: 'Gold', emoji: '🪙', color: '#eab308', example: 'Gold coins' },
-  { id: 'investment', label: 'Investments', emoji: '📈', color: '#8b5cf6', example: 'Stocks' },
-  { id: 'owed', label: 'Owed to me', emoji: '🤝', color: '#14b8a6', example: 'Splitwise' },
-  { id: 'debt', label: 'I owe', emoji: '🧾', color: '#ef4444', example: 'Splitwise', liability: true },
-  { id: 'other', label: 'Other', emoji: '💼', color: '#94a3b8', example: 'Car' },
+  { id: 'cash', emoji: '💵', color: '#22c55e' },
+  { id: 'bank', emoji: '🏦', color: '#3b82f6' },
+  { id: 'savings', emoji: '🐖', color: '#ec4899' },
+  { id: 'gold', emoji: '🪙', color: '#eab308' },
+  { id: 'investment', emoji: '📈', color: '#8b5cf6' },
+  { id: 'splitwise', emoji: '🤝', color: '#14b8a6', signed: true },
+  { id: 'debt', emoji: '🧾', color: '#ef4444', liability: true },
+  { id: 'other', emoji: '💼', color: '#94a3b8' },
 ]
 
-/** One-tap starting points in the "add" form. */
-export const ASSET_PRESETS: { name: string; kind: AssetKind }[] = [
-  { name: 'Cash', kind: 'cash' },
-  { name: 'Bank account', kind: 'bank' },
-  { name: 'Savings', kind: 'savings' },
-  { name: 'Gold', kind: 'gold' },
-  { name: 'Splitwise – owed to me', kind: 'owed' },
-  { name: 'Splitwise – I owe', kind: 'debt' },
-]
+/** Kinds offered as one-tap starting points in the "add" form. */
+export const ASSET_PRESETS: AssetKind[] = ['cash', 'bank', 'savings', 'gold', 'splitwise']
 
 const BY_ID = new Map(ASSET_KINDS.map((k) => [k.id, k]))
 
@@ -42,27 +36,32 @@ export function isAssetKind(value: unknown): value is AssetKind {
   return typeof value === 'string' && BY_ID.has(value as AssetKind)
 }
 
+/** What this item adds to (positive) or takes away from (negative) the total. */
+export function signedValue(a: Asset): number {
+  return getAssetKind(a.kind).liability ? -a.value : a.value
+}
+
 export interface AssetSummary {
   /** Everything you own, including money owed to you. */
   owned: number
-  /** Everything you owe. */
+  /** Everything you owe, as a positive number. */
   owing: number
   /** owned - owing */
   total: number
+  /** Signed totals per kind, largest effect first. */
   byKind: { kind: AssetKind; total: number; count: number }[]
 }
 
 export function summarizeAssets(assets: Asset[]): AssetSummary {
   let owned = 0
   let owing = 0
-  for (const a of assets) {
-    if (getAssetKind(a.kind).liability) owing += a.value
-    else owned += a.value
-  }
   const totals = new Map<AssetKind, { total: number; count: number }>()
   for (const a of assets) {
+    const v = signedValue(a)
+    if (v >= 0) owned += v
+    else owing -= v
     const t = totals.get(a.kind) ?? { total: 0, count: 0 }
-    t.total += a.value
+    t.total += v
     t.count += 1
     totals.set(a.kind, t)
   }
@@ -72,16 +71,16 @@ export function summarizeAssets(assets: Asset[]): AssetSummary {
     total: roundMoney(owned - owing),
     byKind: [...totals.entries()]
       .map(([kind, t]) => ({ kind, total: roundMoney(t.total), count: t.count }))
-      .sort((a, b) => b.total - a.total),
+      .sort((a, b) => Math.abs(b.total) - Math.abs(a.total)),
   }
 }
 
 /** "today", "yesterday", "5 days ago", "3 months ago" */
-export function formatUpdated(updatedAt: number, now: number): string {
+export function formatUpdated(updatedAt: number, now: number, lang: Lang = 'en'): string {
   const days = Math.floor((now - updatedAt) / 86_400_000)
-  if (days <= 0) return 'today'
-  if (days === 1) return 'yesterday'
-  if (days < 30) return `${days} days ago`
+  if (days <= 0) return translate(lang, 'when.today')
+  if (days === 1) return translate(lang, 'when.yesterday')
+  if (days < 30) return translate(lang, 'when.days', { n: days })
   const months = Math.floor(days / 30)
-  return months === 1 ? '1 month ago' : `${months} months ago`
+  return months === 1 ? translate(lang, 'when.month') : translate(lang, 'when.months', { n: months })
 }

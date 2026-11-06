@@ -24,15 +24,15 @@ export function isCategoryId(value: unknown): value is CategoryId {
 }
 
 const KEYWORDS: Record<Exclude<CategoryId, 'other'>, string[]> = {
-  food: ['coffee', 'cafe', 'lunch', 'dinner', 'breakfast', 'pizza', 'burger', 'restaurant', 'snack', 'tea', 'sandwich', 'takeaway', 'kebab', 'sushi', 'bar', 'beer', 'drink', 'starbucks', 'mcdonalds', 'food'],
-  groceries: ['grocery', 'groceries', 'supermarket', 'market', 'bread', 'milk', 'eggs', 'fruit', 'vegetables', 'aldi', 'lidl', 'walmart', 'costco', 'tesco'],
-  transport: ['uber', 'taxi', 'bus', 'metro', 'train', 'subway', 'fuel', 'gas', 'petrol', 'parking', 'snapp', 'lyft', 'bolt', 'ticket', 'toll'],
-  shopping: ['clothes', 'shoes', 'amazon', 'shirt', 'gift', 'electronics', 'book', 'books', 'shop', 'store'],
-  bills: ['rent', 'electricity', 'water', 'internet', 'phone', 'mobile', 'insurance', 'subscription', 'netflix', 'spotify', 'bill', 'tax'],
-  home: ['furniture', 'ikea', 'cleaning', 'repair', 'kitchen', 'decor', 'tools'],
-  health: ['pharmacy', 'doctor', 'medicine', 'dentist', 'gym', 'hospital', 'vitamins'],
-  fun: ['cinema', 'movie', 'concert', 'game', 'games', 'party', 'museum', 'bowling'],
-  travel: ['hotel', 'flight', 'airbnb', 'hostel', 'trip', 'vacation', 'holiday'],
+  food: ['caffè', 'caffe', 'pranzo', 'cena', 'colazione', 'aperitivo', 'gelato', 'cornetto', 'ristorante', 'pizzeria', 'panino', 'birra', 'coffee', 'cafe', 'lunch', 'dinner', 'breakfast', 'pizza', 'burger', 'restaurant', 'snack', 'tea', 'sandwich', 'takeaway', 'kebab', 'sushi', 'bar', 'beer', 'drink', 'starbucks', 'mcdonalds', 'food'],
+  groceries: ['spesa', 'supermercato', 'mercato', 'pane', 'latte', 'frutta', 'verdura', 'conad', 'coop', 'esselunga', 'carrefour', 'eurospin', 'grocery', 'groceries', 'supermarket', 'market', 'bread', 'milk', 'eggs', 'fruit', 'vegetables', 'aldi', 'lidl', 'walmart', 'costco', 'tesco'],
+  transport: ['benzina', 'treno', 'autobus', 'biglietto', 'parcheggio', 'pedaggio', 'trenitalia', 'italo', 'atm', 'uber', 'taxi', 'bus', 'metro', 'train', 'subway', 'fuel', 'gas', 'petrol', 'parking', 'snapp', 'lyft', 'bolt', 'ticket', 'toll'],
+  shopping: ['vestiti', 'scarpe', 'regalo', 'libro', 'libri', 'negozio', 'clothes', 'shoes', 'amazon', 'shirt', 'gift', 'electronics', 'book', 'books', 'shop', 'store'],
+  bills: ['affitto', 'bolletta', 'bollette', 'luce', 'acqua', 'telefono', 'abbonamento', 'assicurazione', 'tasse', 'rent', 'electricity', 'water', 'internet', 'phone', 'mobile', 'insurance', 'subscription', 'netflix', 'spotify', 'bill', 'tax'],
+  home: ['mobili', 'pulizie', 'riparazione', 'cucina', 'furniture', 'ikea', 'cleaning', 'repair', 'kitchen', 'decor', 'tools'],
+  health: ['farmacia', 'medico', 'medicine', 'dentista', 'palestra', 'ospedale', 'pharmacy', 'doctor', 'medicine', 'dentist', 'gym', 'hospital', 'vitamins'],
+  fun: ['concerto', 'gioco', 'giochi', 'festa', 'museo', 'cinema', 'movie', 'concert', 'game', 'games', 'party', 'museum', 'bowling'],
+  travel: ['albergo', 'volo', 'viaggio', 'vacanza', 'vacanze', 'hotel', 'flight', 'airbnb', 'hostel', 'trip', 'vacation', 'holiday'],
 }
 
 const KEYWORD_INDEX = new Map<string, CategoryId>()

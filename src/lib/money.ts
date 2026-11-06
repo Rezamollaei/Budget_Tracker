@@ -1,16 +1,20 @@
+import { formatLocale } from './locale'
+
 export const CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'CHF', 'SEK', 'NOK', 'DKK', 'PLN', 'TRY', 'AED', 'IRR', 'INR', 'JPY', 'CNY', 'BRL', 'MXN']
 
 const formatters = new Map<string, Intl.NumberFormat>()
 
 export function formatMoney(amount: number, currency: string): string {
-  let f = formatters.get(currency)
+  const locale = formatLocale()
+  const key = `${locale}|${currency}`
+  let f = formatters.get(key)
   if (!f) {
     try {
-      f = new Intl.NumberFormat(undefined, { style: 'currency', currency })
+      f = new Intl.NumberFormat(locale, { style: 'currency', currency })
     } catch {
-      f = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      f = new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     }
-    formatters.set(currency, f)
+    formatters.set(key, f)
   }
   return f.format(amount)
 }
@@ -30,4 +34,10 @@ export function parseAmount(text: string): number | null {
   else return null
   const n = Number(normalized)
   return Number.isFinite(n) && n > 0 ? roundMoney(n) : null
+}
+
+/** An amount as the user would type it: "35.4" in English, "35,4" in Italian. */
+export function amountForInput(amount: number): string {
+  const s = String(amount)
+  return formatLocale().startsWith('it') ? s.replace('.', ',') : s
 }

@@ -142,21 +142,45 @@ describe('budgets and summaries', () => {
 })
 
 describe('what I own', () => {
-  it('subtracts what I owe (e.g. Splitwise) from what I own', () => {
+  it('adds what I own and subtracts debts and a negative Splitwise balance', () => {
+    const base = { updatedAt: 1 }
     const s = summarizeAssets([
-      { id: '1', name: 'Bank', kind: 'bank', value: 1000, updatedAt: 1 },
-      { id: '2', name: 'Gold', kind: 'gold', value: 400.5, updatedAt: 1 },
-      { id: '3', name: 'Splitwise – owed to me', kind: 'owed', value: 60, updatedAt: 1 },
-      { id: '4', name: 'Splitwise – I owe', kind: 'debt', value: 85.25, updatedAt: 1 },
+      { ...base, id: '1', name: 'Bank', kind: 'bank', value: 1000 },
+      { ...base, id: '2', name: 'Gold', kind: 'gold', value: 400.5 },
+      { ...base, id: '3', name: 'Splitwise', kind: 'splitwise', value: -85.25 },
+      { ...base, id: '4', name: 'Car loan', kind: 'debt', value: 300 },
     ])
-    expect([s.owned, s.owing, s.total]).toEqual([1460.5, 85.25, 1375.25])
-    expect(s.byKind[0]).toEqual({ kind: 'bank', total: 1000, count: 1 })
+    expect([s.owned, s.owing, s.total]).toEqual([1400.5, 385.25, 1015.25])
+    expect(s.byKind.map((k) => [k.kind, k.total])).toEqual([
+      ['bank', 1000],
+      ['gold', 400.5],
+      ['debt', -300],
+      ['splitwise', -85.25],
+    ])
+  })
+  it('counts a positive Splitwise balance as money owed to me', () => {
+    const s = summarizeAssets([{ id: '1', name: 'Splitwise', kind: 'splitwise', value: 60, updatedAt: 1 }])
+    expect([s.owned, s.owing, s.total]).toEqual([60, 0, 60])
+  })
+  it('only lets Splitwise balances be negative when loading', () => {
+    const s = parseImport(
+      JSON.stringify({
+        version: 1, currency: 'EUR', budgets: {}, expenses: [],
+        assets: [
+          { id: 'a', name: 'Splitwise', kind: 'splitwise', value: -20, updatedAt: 1 },
+          { id: 'b', name: 'Cash', kind: 'cash', value: -20, updatedAt: 1 },
+        ],
+      }),
+      '2026-11-06',
+    )!
+    expect(s.assets.map((a) => a.id)).toEqual(['a'])
   })
   it('describes when a value was last updated', () => {
     const day = 86_400_000
     expect(formatUpdated(10 * day, 10 * day + 5)).toBe('today')
     expect(formatUpdated(0, day)).toBe('yesterday')
     expect(formatUpdated(0, 45 * day)).toBe('1 month ago')
+    expect(formatUpdated(0, 5 * day, 'it')).toBe('5 giorni fa')
   })
 })
 
@@ -215,9 +239,31 @@ describe('csv and dates', () => {
       'Date,Type,Description,Category,Amount\n2026-11-06,Expense,"Dinner, ""fancy""",Food & drink,30.00\n2026-11-06,Income,Salary,Income,2000.00\n',
     )
   })
+  it('writes CSV in Italian', () => {
+    expect(toCSV([exp({ description: 'Pranzo', category: 'food', amount: 12.5 })], [], 'it')).toBe(
+      'Data,Tipo,Descrizione,Categoria,Importo\n2026-11-06,Uscita,Pranzo,Cibo e bevande,12.50\n',
+    )
+  })
+  it('understands Italian dates and categories', () => {
+    expect(parseEntry('caffè 1,50 ieri')).toMatchObject({ amount: 1.5, description: 'Caffè', dayOffset: -1 })
+    expect(guessCategory('Benzina', [])).toBe('transport')
+    expect(guessCategory('spesa Conad', [])).toBe('groceries')
+  })
   it('handles month and day arithmetic', () => {
     expect(addDays('2026-03-01', -1)).toBe('2026-02-28')
     expect(shiftMonth('2026-01', -1)).toBe('2025-12')
     expect(daysInMonth('2028-02')).toBe(29)
+  })
+})
+
+describe('amount inputs', () => {
+  it('uses a decimal comma in Italian', async () => {
+    const { amountForInput } = await import('./money')
+    const { setFormatLocale } = await import('./locale')
+    setFormatLocale('it')
+    expect(amountForInput(35.4)).toBe('35,4')
+    expect(parseAmount(amountForInput(35.4))).toBe(35.4)
+    setFormatLocale('en')
+    expect(amountForInput(35.4)).toBe('35.4')
   })
 })

@@ -36,9 +36,14 @@ export interface Income {
   createdAt: number
 }
 
-export type AssetKind = 'cash' | 'bank' | 'savings' | 'gold' | 'investment' | 'owed' | 'debt' | 'other'
+export type AssetKind = 'cash' | 'bank' | 'savings' | 'gold' | 'investment' | 'splitwise' | 'debt' | 'other'
 
-/** Something you own (or owe, for kind 'debt'), with its current value. Values are never negative. */
+/**
+ * Something you own, with its current value.
+ * 'debt' values are amounts you owe (subtracted from the total).
+ * 'splitwise' is your Splitwise balance: positive when friends owe you, negative when you owe.
+ * All other values are zero or more.
+ */
 export interface Asset {
   id: string
   name: string

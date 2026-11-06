@@ -14,12 +14,24 @@ import { SettingsDialog } from './components/SettingsDialog'
 import { Toast, type ToastData } from './components/Toast'
 import { AssetsView } from './components/AssetsView'
 import { AssetDialog, type AssetDraft } from './components/AssetDialog'
+import { I18nProvider, makeI18n } from './i18n'
+import { LANGS } from './lib/i18n'
+import { setFormatLocale } from './lib/locale'
+import { applyTheme, loadPrefs, savePrefs, type Prefs, type Theme } from './lib/prefs'
+
+const NEXT_THEME: Record<Theme, Theme> = { auto: 'light', light: 'dark', dark: 'auto' }
+const THEME_ICON: Record<Theme, string> = { auto: '🌗', light: '☀️', dark: '🌙' }
 
 type Tab = 'spending' | 'own'
 const tabFromHash = (): Tab => (window.location.hash === '#own' ? 'own' : 'spending')
 
 export default function App() {
   const [state, setState] = useState<AppState>(loadState)
+  const [prefs, setPrefs] = useState<Prefs>(loadPrefs)
+  const i18n = useMemo(() => makeI18n(prefs.lang), [prefs.lang])
+  const { t, tn } = i18n
+  // Number and date formatting follow the chosen language.
+  setFormatLocale(i18n.locale)
   const [today, setToday] = useState(todayISO)
   const [month, setMonth] = useState(() => monthKey(todayISO()))
   const [category, setCategory] = useState<CategoryId | null>(null)
@@ -40,6 +52,12 @@ export default function App() {
     }
     setSaveFailed(!saveState(state))
   }, [state])
+
+  useEffect(() => {
+    savePrefs(prefs)
+    applyTheme(prefs.theme)
+    document.documentElement.lang = prefs.lang
+  }, [prefs])
 
   // Keep "today" fresh if the tab stays open past midnight, and sync between tabs.
   useEffect(() => {
@@ -104,8 +122,8 @@ export default function App() {
     const expense: Expense = { ...input, id: newId(), createdAt: Date.now() }
     setState((s) => ({ ...s, expenses: [...s.expenses, expense] }))
     setMonth(monthKey(expense.date))
-    showToast(`Added ${expense.description} · ${money(expense.amount)}`, {
-      label: 'Undo',
+    showToast(t('toastAdded', { name: expense.description, amount: money(expense.amount) }), {
+      label: t('undo'),
       run: () => setState((s) => ({ ...s, expenses: s.expenses.filter((e) => e.id !== expense.id) })),
     })
   }
@@ -114,8 +132,8 @@ export default function App() {
     const income: Income = { ...input, id: newId(), createdAt: Date.now() }
     setState((s) => ({ ...s, incomes: [...s.incomes, income] }))
     setMonth(monthKey(income.date))
-    showToast(`Added income ${income.description} · +${money(income.amount)}`, {
-      label: 'Undo',
+    showToast(t('toastAddedIncome', { name: income.description, amount: money(income.amount) }), {
+      label: t('undo'),
       run: () => setState((s) => ({ ...s, incomes: s.incomes.filter((i) => i.id !== income.id) })),
     })
   }
@@ -129,18 +147,18 @@ export default function App() {
       setState((s) => ({ ...s, incomes: s.incomes.map((i) => (i.id === updated.id ? updated : i)) }))
     }
     setEditing(null)
-    showToast('Saved')
+    showToast(t('toastSaved'))
   }
 
   function deleteEntry(entry: Entry) {
     if (entry.type === 'expense') {
       const { type: _t, ...expense } = entry
       setState((s) => ({ ...s, expenses: s.expenses.filter((e) => e.id !== expense.id) }))
-      showToast(`Deleted ${expense.description}`, { label: 'Undo', run: () => setState((s) => ({ ...s, expenses: [...s.expenses, expense] })) })
+      showToast(t('toastDeleted', { name: expense.description }), { label: t('undo'), run: () => setState((s) => ({ ...s, expenses: [...s.expenses, expense] })) })
     } else {
       const { type: _t, ...income } = entry
       setState((s) => ({ ...s, incomes: s.incomes.filter((i) => i.id !== income.id) }))
-      showToast(`Deleted ${income.description}`, { label: 'Undo', run: () => setState((s) => ({ ...s, incomes: [...s.incomes, income] })) })
+      showToast(t('toastDeleted', { name: income.description }), { label: t('undo'), run: () => setState((s) => ({ ...s, incomes: [...s.incomes, income] })) })
     }
     setEditing(null)
   }
@@ -149,11 +167,11 @@ export default function App() {
     const updatedAt = Date.now()
     if (input.id) {
       setState((s) => ({ ...s, assets: s.assets.map((a) => (a.id === input.id ? { ...a, ...input, id: a.id, updatedAt } : a)) }))
-      showToast(`Updated ${input.name}`)
+      showToast(t('toastUpdated', { name: input.name }))
     } else {
       const asset: Asset = { ...input, id: newId(), updatedAt }
       setState((s) => ({ ...s, assets: [...s.assets, asset] }))
-      showToast(`Added ${asset.name}`)
+      showToast(t('toastAdded', { name: asset.name, amount: money(asset.value) }))
     }
     setAssetDraft(null)
   }
@@ -162,7 +180,7 @@ export default function App() {
     const asset = state.assets.find((a) => a.id === id)
     setState((s) => ({ ...s, assets: s.assets.filter((a) => a.id !== id) }))
     setAssetDraft(null)
-    if (asset) showToast(`Deleted ${asset.name}`, { label: 'Undo', run: () => setState((s) => ({ ...s, assets: [...s.assets, asset] })) })
+    if (asset) showToast(t('toastDeleted', { name: asset.name }), { label: t('undo'), run: () => setState((s) => ({ ...s, assets: [...s.assets, asset] })) })
   }
 
   function switchTab(next: Tab) {
@@ -177,68 +195,97 @@ export default function App() {
       return { ...s, currency, budgets }
     })
     setSettingsOpen(false)
-    showToast('Settings saved')
+    showToast(t('toastSettings'))
   }
 
   async function importFile(file: File) {
     const incoming = parseImport(await file.text(), today)
     if (!incoming) {
-      showToast('That file doesn’t look like a Budget Tracker backup.')
+      showToast(t('importBad'))
       return
     }
     const { state: merged, added } = mergeStates(state, incoming)
     setState(merged)
     setSettingsOpen(false)
-    showToast(`Imported ${added} new ${added === 1 ? 'item' : 'items'}`)
+    showToast(tn('imported', added))
   }
 
   function eraseAll() {
-    if (!window.confirm('Erase all expenses, income, budgets and what you own from this browser? Download a backup first if you might need them.')) return
+    if (!window.confirm(t('eraseConfirm'))) return
     const previous = state
     setState({ ...emptyState(), currency: state.currency })
     setSettingsOpen(false)
-    showToast('All data erased', { label: 'Undo', run: () => setState(previous) })
+    showToast(t('eraseDone'), { label: t('undo'), run: () => setState(previous) })
   }
 
+  const themeName = t(prefs.theme === 'auto' ? 'themeAuto' : prefs.theme === 'light' ? 'themeLight' : 'themeDark')
+
   return (
+    <I18nProvider value={i18n}>
     <div className="app">
       <header className="topbar">
         <h1 className="brand">
-          <span aria-hidden="true">💸</span> Budget Tracker
+          <span aria-hidden="true">💸</span> {t('appName')}
         </h1>
-        <button type="button" className="icon-btn" onClick={() => setSettingsOpen(true)} aria-label="Budget and settings">
-          ⚙️
-        </button>
+        <div className="topbar-actions">
+          <div className="segmented segmented-small" role="radiogroup" aria-label={t('languageAria')}>
+            {LANGS.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                role="radio"
+                aria-checked={prefs.lang === l.id}
+                lang={l.id}
+                className={prefs.lang === l.id ? 'on' : ''}
+                onClick={() => setPrefs((p) => ({ ...p, lang: l.id }))}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="icon-btn"
+            onClick={() => setPrefs((p) => ({ ...p, theme: NEXT_THEME[p.theme] }))}
+            aria-label={t('themeAria', { mode: themeName })}
+            title={t('themeAria', { mode: themeName })}
+          >
+            {THEME_ICON[prefs.theme]}
+          </button>
+          <button type="button" className="icon-btn" onClick={() => setSettingsOpen(true)} aria-label={t('settingsAria')} title={t('settingsAria')}>
+            ⚙️
+          </button>
+        </div>
       </header>
 
-      <nav className="tabs" aria-label="Sections">
+      <nav className="tabs" aria-label={t('sectionsAria')}>
         <button type="button" className={tab === 'spending' ? 'on' : ''} aria-current={tab === 'spending' ? 'page' : undefined} onClick={() => switchTab('spending')}>
-          Spending
+          {t('tabSpending')}
         </button>
         <button type="button" className={tab === 'own' ? 'on' : ''} aria-current={tab === 'own' ? 'page' : undefined} onClick={() => switchTab('own')}>
-          What I own
+          {t('tabOwn')}
         </button>
       </nav>
 
       {saveFailed && (
         <p className="banner" role="alert">
-          Your browser isn’t letting this page save data (private mode or storage disabled). Changes will be lost when you close the tab.
+          {t('saveFailed')}
         </p>
       )}
 
       {tab === 'spending' ? (
         <>
-          <nav className="month-nav" aria-label="Month">
-            <button type="button" className="icon-btn" onClick={() => setMonth((m) => shiftMonth(m, -1))} aria-label="Previous month">
+          <nav className="month-nav" aria-label={t('monthAria')}>
+            <button type="button" className="icon-btn" onClick={() => setMonth((m) => shiftMonth(m, -1))} aria-label={t('prevMonth')}>
               ‹
             </button>
             <span className="month-label">{formatMonth(month)}</span>
-            <button type="button" className="icon-btn" onClick={() => setMonth((m) => shiftMonth(m, 1))} aria-label="Next month">
+            <button type="button" className="icon-btn" onClick={() => setMonth((m) => shiftMonth(m, 1))} aria-label={t('nextMonth')}>
               ›
             </button>
             {!isCurrentMonth && (
               <button type="button" className="link-btn" onClick={() => setMonth(monthKey(today))}>
-                This month
+                {t('thisMonth')}
               </button>
             )}
           </nav>
@@ -272,12 +319,13 @@ export default function App() {
         itemCount={state.expenses.length + state.incomes.length + state.assets.length}
         onClose={() => setSettingsOpen(false)}
         onSave={saveSettings}
-        onExportCSV={() => downloadFile(`expenses-${today}.csv`, toCSV(state.expenses, state.incomes), 'text/csv;charset=utf-8')}
+        onExportCSV={() => downloadFile(`expenses-${today}.csv`, toCSV(state.expenses, state.incomes, prefs.lang), 'text/csv;charset=utf-8')}
         onBackup={() => downloadFile(`budget-backup-${today}.json`, JSON.stringify(state, null, 2), 'application/json')}
         onImport={importFile}
         onEraseAll={eraseAll}
       />
       <Toast toast={toast} onDone={clearToast} />
     </div>
+    </I18nProvider>
   )
 }

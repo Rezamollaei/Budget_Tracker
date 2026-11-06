@@ -2,6 +2,7 @@ import type { MonthSummary } from '../lib/stats'
 import { getCategory } from '../lib/categories'
 import { formatMoney } from '../lib/money'
 import type { CategoryId } from '../lib/types'
+import { useI18n } from '../i18n'
 
 interface Props {
   summary: MonthSummary
@@ -11,16 +12,17 @@ interface Props {
 }
 
 export function Breakdown({ summary, currency, selected, onSelect }: Props) {
+  const { t, category: categoryName } = useI18n()
   if (summary.byCategory.length === 0) return null
   const max = summary.byCategory[0].total
 
   return (
     <section className="card" aria-labelledby="breakdown-title">
       <div className="section-head">
-        <h2 id="breakdown-title">Where it went</h2>
+        <h2 id="breakdown-title">{t('whereItWent')}</h2>
         {selected && (
           <button type="button" className="link-btn" onClick={() => onSelect(null)}>
-            Show all
+            {t('showAll')}
           </button>
         )}
       </div>
@@ -37,7 +39,7 @@ export function Breakdown({ summary, currency, selected, onSelect }: Props) {
                 onClick={() => onSelect(selected === category ? null : category)}
               >
                 <span className="bar-label">
-                  <span aria-hidden="true">{c.emoji}</span> {c.label}
+                  <span aria-hidden="true">{c.emoji}</span> {categoryName(c.id)}
                   <span className="muted"> · {count}</span>
                 </span>
                 <span className="bar-value">

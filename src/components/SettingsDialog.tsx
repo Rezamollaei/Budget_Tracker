@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { CURRENCIES, parseAmount } from '../lib/money'
+import { CURRENCIES, amountForInput, parseAmount } from '../lib/money'
 import { formatMonth } from '../lib/dates'
 import { Modal } from './Modal'
+import { useI18n } from '../i18n'
 
 interface Props {
   open: boolean
@@ -19,6 +20,7 @@ interface Props {
 
 export function SettingsDialog(props: Props) {
   const { open, month, currency, budget, itemCount, onClose, onSave, onExportCSV, onBackup, onImport, onEraseAll } = props
+  const { t, tn } = useI18n()
   const [cur, setCur] = useState(currency)
   const [amount, setAmount] = useState('')
   const [error, setError] = useState('')
@@ -27,7 +29,7 @@ export function SettingsDialog(props: Props) {
   useEffect(() => {
     if (!open) return
     setCur(currency)
-    setAmount(budget > 0 ? String(budget) : '')
+    setAmount(budget > 0 ? amountForInput(budget) : '')
     setError('')
   }, [open, currency, budget])
 
@@ -36,7 +38,7 @@ export function SettingsDialog(props: Props) {
     let value = 0
     if (amount.trim()) {
       const parsed = parseAmount(amount)
-      if (parsed === null) return setError('Enter a budget greater than zero, or leave it empty for no budget.')
+      if (parsed === null) return setError(t('errBudget'))
       value = parsed
     }
     onSave(cur, value)
@@ -45,15 +47,15 @@ export function SettingsDialog(props: Props) {
   const currencies = CURRENCIES.includes(cur) ? CURRENCIES : [cur, ...CURRENCIES]
 
   return (
-    <Modal open={open} title="Budget & settings" onClose={onClose}>
+    <Modal open={open} title={t('settingsTitle')} onClose={onClose}>
       <form className="form" onSubmit={save}>
         <label>
-          Monthly budget
-          <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="e.g. 1500" autoFocus />
-          <span className="hint">Applies from {formatMonth(month)} onwards, until you change it again.</span>
+          {t('monthlyBudget')}
+          <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder={t('budgetPlaceholder')} autoFocus />
+          <span className="hint">{t('budgetHint', { month: formatMonth(month) })}</span>
         </label>
         <label>
-          Currency
+          {t('currency')}
           <select value={cur} onChange={(e) => setCur(e.target.value)}>
             {currencies.map((c) => (
               <option key={c} value={c}>
@@ -70,29 +72,28 @@ export function SettingsDialog(props: Props) {
         <div className="form-actions">
           <span className="spacer" />
           <button type="button" className="btn" onClick={onClose}>
-            Cancel
+            {t('cancel')}
           </button>
           <button type="submit" className="btn btn-primary">
-            Save
+            {t('save')}
           </button>
         </div>
       </form>
 
       <hr />
-      <h3>Your data</h3>
+      <h3>{t('yourData')}</h3>
       <p className="hint">
-        Everything is stored privately in this browser ({itemCount} {itemCount === 1 ? 'item' : 'items'}). Download a backup now and then,
-        or to move to another device.
+        {tn('dataHint', itemCount)}
       </p>
       <div className="data-actions">
         <button type="button" className="btn" onClick={onExportCSV} disabled={itemCount === 0}>
-          Export CSV (Excel)
+          {t('exportCsv')}
         </button>
         <button type="button" className="btn" onClick={onBackup}>
-          Download backup
+          {t('backup')}
         </button>
         <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
-          Import backup
+          {t('importBackup')}
         </button>
         <input
           ref={fileRef}
@@ -106,9 +107,9 @@ export function SettingsDialog(props: Props) {
           }}
         />
       </div>
-      <p className="hint">Import also accepts the <code>budget_data.json</code> file from the old Python version.</p>
+      <p className="hint">{t('importHint')}</p>
       <button type="button" className="btn btn-danger btn-small" onClick={onEraseAll} disabled={itemCount === 0}>
-        Erase all data…
+        {t('eraseAll')}
       </button>
     </Modal>
   )

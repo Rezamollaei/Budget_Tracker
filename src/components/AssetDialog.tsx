@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { Asset, AssetKind } from '../lib/types'
+import type { MessageKey } from '../lib/i18n'
 import { ASSET_KINDS, ASSET_PRESETS, getAssetKind } from '../lib/assets'
-import { parseAmount } from '../lib/money'
+import { amountForInput, parseAmount } from '../lib/money'
 import { Modal } from './Modal'
+import { useI18n } from '../i18n'
 
 export type AssetDraft = Pick<Asset, 'name' | 'kind'> & { value?: number; id?: string }
 
@@ -14,78 +16,97 @@ interface Props {
   onDelete: (id: string) => void
 }
 
-const HINTS: Partial<Record<AssetKind, string>> = {
-  owed: 'Money friends owe you. In Splitwise, copy the “you are owed” total.',
-  debt: 'Money you owe others. In Splitwise, copy the “you owe” total. This is subtracted from your total.',
-  gold: 'Type what your gold is worth today. Update it when the price changes.',
+const HINTS: Partial<Record<AssetKind, MessageKey>> = {
+  splitwise: 'hint.splitwise',
+  debt: 'hint.debt',
+  gold: 'hint.gold',
 }
 
 export function AssetDialog({ draft, onClose, onSave, onDelete }: Props) {
+  const { t, assetKind } = useI18n()
   const [name, setName] = useState('')
   const [kind, setKind] = useState<AssetKind>('cash')
   const [value, setValue] = useState('')
+  /** Splitwise only: true when you owe (negative balance). */
+  const [iOwe, setIOwe] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!draft) return
     setName(draft.name)
     setKind(draft.kind)
-    setValue(draft.value !== undefined ? String(draft.value) : '')
+    setValue(draft.value !== undefined ? amountForInput(Math.abs(draft.value)) : '')
+    setIOwe((draft.value ?? 0) < 0)
     setError('')
   }, [draft])
 
   const isNew = !draft?.id
+  const info = getAssetKind(kind)
 
   function save(e: React.FormEvent) {
     e.preventDefault()
-    const trimmed = value.trim()
-    const amount = trimmed === '0' ? 0 : parseAmount(trimmed)
-    if (amount === null) return setError('Enter a value, for example 1200. Use 0 if it’s empty right now.')
-    onSave({ id: draft?.id, name: name.trim() || getAssetKind(kind).label, kind, value: amount })
+    const trimmed = value.trim().replace(/^-/, '')
+    const amount = /^0+([.,]0+)?$/.test(trimmed) ? 0 : parseAmount(trimmed)
+    if (amount === null) return setError(t('errValue'))
+    const signed = info.signed && iOwe ? -amount : amount
+    onSave({ id: draft?.id, name: name.trim() || assetKind(kind), kind, value: signed })
   }
 
   return (
-    <Modal open={draft !== null} title={isNew ? 'Add to what I own' : 'Update value'} onClose={onClose}>
+    <Modal open={draft !== null} title={t(isNew ? 'addAssetTitle' : 'updateValue')} onClose={onClose}>
       <form className="form" onSubmit={save}>
         {isNew && (
           <div>
-            <span className="field-label">Quick start</span>
+            <span className="field-label">{t('quickStart')}</span>
             <div className="chips">
-              {ASSET_PRESETS.map((p) => (
+              {ASSET_PRESETS.map((k) => (
                 <button
-                  key={p.name}
+                  key={k}
                   type="button"
-                  className={`chip${name === p.name ? ' chip-on' : ''}`}
-                  style={{ ['--chip' as string]: getAssetKind(p.kind).color }}
+                  className={`chip${kind === k && name === assetKind(k) ? ' chip-on' : ''}`}
+                  style={{ ['--chip' as string]: getAssetKind(k).color }}
                   onClick={() => {
-                    setName(p.name)
-                    setKind(p.kind)
+                    setName(assetKind(k))
+                    setKind(k)
                   }}
                 >
-                  <span aria-hidden="true">{getAssetKind(p.kind).emoji}</span> {p.name}
+                  <span aria-hidden="true">{getAssetKind(k).emoji}</span> {assetKind(k)}
                 </button>
               ))}
             </div>
           </div>
         )}
         <label>
-          Name
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={getAssetKind(kind).example} />
+          {t('name')}
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t(`example.${kind}` as MessageKey)} />
         </label>
         <label>
-          Type
+          {t('type')}
           <select value={kind} onChange={(e) => setKind(e.target.value as AssetKind)}>
             {ASSET_KINDS.map((k) => (
               <option key={k.id} value={k.id}>
-                {k.emoji} {k.label}
+                {k.emoji} {assetKind(k.id)}
               </option>
             ))}
           </select>
         </label>
+        {info.signed && (
+          <div>
+            <span className="field-label">{t('swDirection')}</span>
+            <div className="segmented" role="radiogroup" aria-label={t('swDirection')}>
+              <button type="button" role="radio" aria-checked={!iOwe} className={!iOwe ? 'on' : ''} onClick={() => setIOwe(false)}>
+                {t('swTheyOwe')}
+              </button>
+              <button type="button" role="radio" aria-checked={iOwe} className={iOwe ? 'on on-danger' : ''} onClick={() => setIOwe(true)}>
+                {t('swIOwe')}
+              </button>
+            </div>
+          </div>
+        )}
         <label>
-          {getAssetKind(kind).liability ? 'Amount you owe' : 'Current value'}
+          {t(info.liability ? 'amountOwe' : info.signed ? 'balance' : 'currentValue')}
           <input value={value} onChange={(e) => setValue(e.target.value)} inputMode="decimal" placeholder="0" autoFocus={!isNew} />
-          {HINTS[kind] && <span className="hint">{HINTS[kind]}</span>}
+          {HINTS[kind] && <span className="hint">{t(HINTS[kind]!)}</span>}
         </label>
         {error && (
           <p className="entry-error" role="alert">
@@ -95,15 +116,15 @@ export function AssetDialog({ draft, onClose, onSave, onDelete }: Props) {
         <div className="form-actions">
           {!isNew && (
             <button type="button" className="btn btn-danger" onClick={() => draft?.id && onDelete(draft.id)}>
-              Delete
+              {t('delete')}
             </button>
           )}
           <span className="spacer" />
           <button type="button" className="btn" onClick={onClose}>
-            Cancel
+            {t('cancel')}
           </button>
           <button type="submit" className="btn btn-primary">
-            {isNew ? 'Add' : 'Save'}
+            {t(isNew ? 'add' : 'save')}
           </button>
         </div>
       </form>

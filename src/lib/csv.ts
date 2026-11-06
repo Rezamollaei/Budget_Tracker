@@ -1,19 +1,19 @@
 import type { Expense, Income } from './types'
-import { getCategory } from './categories'
+import { translate, type Lang, type MessageKey } from './i18n'
 
 function cell(value: string | number): string {
   const s = String(value)
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
 }
 
-export function toCSV(expenses: Expense[], incomes: Income[] = []): string {
+export function toCSV(expenses: Expense[], incomes: Income[] = [], lang: Lang = 'en'): string {
   const rows = [
-    ...expenses.map((e) => ({ ...e, type: 'Expense', category: getCategory(e.category).label })),
-    ...incomes.map((i) => ({ ...i, type: 'Income', category: 'Income' })),
+    ...expenses.map((e) => ({ ...e, type: translate(lang, 'expense'), category: translate(lang, `cat.${e.category}` as MessageKey) })),
+    ...incomes.map((i) => ({ ...i, type: translate(lang, 'income'), category: translate(lang, 'income') })),
   ]
     .sort((a, b) => (a.date === b.date ? a.createdAt - b.createdAt : a.date < b.date ? -1 : 1))
     .map((r) => [r.date, r.type, r.description, r.category, r.amount.toFixed(2)].map(cell).join(','))
-  return ['Date,Type,Description,Category,Amount', ...rows].join('\n') + '\n'
+  return [translate(lang, 'csvHeader'), ...rows].join('\n') + '\n'
 }
 
 export function downloadFile(filename: string, content: string, type: string): void {

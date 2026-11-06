@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { CategoryId } from '../lib/types'
 import type { Entry } from '../lib/stats'
-import { parseAmount } from '../lib/money'
+import { amountForInput, parseAmount } from '../lib/money'
 import { CategoryPicker } from './CategoryPicker'
 import { Modal } from './Modal'
+import { useI18n } from '../i18n'
 
 interface Props {
   entry: Entry | null
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function EditDialog({ entry, onClose, onSave, onDelete }: Props) {
+  const { t } = useI18n()
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<CategoryId>('other')
@@ -21,7 +23,7 @@ export function EditDialog({ entry, onClose, onSave, onDelete }: Props) {
 
   useEffect(() => {
     if (!entry) return
-    setAmount(String(entry.amount))
+    setAmount(amountForInput(entry.amount))
     setDescription(entry.description)
     setCategory(entry.type === 'expense' ? entry.category : 'other')
     setDate(entry.date)
@@ -32,8 +34,8 @@ export function EditDialog({ entry, onClose, onSave, onDelete }: Props) {
     e.preventDefault()
     if (!entry) return
     const value = parseAmount(amount)
-    if (value === null) return setError('Enter an amount greater than zero.')
-    if (!date) return setError('Pick a date.')
+    if (value === null) return setError(t('errAmount'))
+    if (!date) return setError(t('errDate'))
     const common = { amount: value, description: description.trim() || entry.description, date }
     onSave(entry.type === 'expense' ? { ...entry, ...common, category } : { ...entry, ...common })
   }
@@ -41,23 +43,23 @@ export function EditDialog({ entry, onClose, onSave, onDelete }: Props) {
   const isIncome = entry?.type === 'income'
 
   return (
-    <Modal open={entry !== null} title={isIncome ? 'Edit income' : 'Edit expense'} onClose={onClose}>
+    <Modal open={entry !== null} title={t(isIncome ? 'editIncome' : 'editExpense')} onClose={onClose}>
       <form className="form" onSubmit={save}>
         <label>
-          Amount
+          {t('amount')}
           <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" autoFocus />
         </label>
         <label>
-          Description
+          {t('description')}
           <input value={description} onChange={(e) => setDescription(e.target.value)} />
         </label>
         <label>
-          Date
+          {t('date')}
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
         {!isIncome && (
           <div>
-            <span className="field-label">Category</span>
+            <span className="field-label">{t('category')}</span>
             <CategoryPicker value={category} onChange={setCategory} />
           </div>
         )}
@@ -68,14 +70,14 @@ export function EditDialog({ entry, onClose, onSave, onDelete }: Props) {
         )}
         <div className="form-actions">
           <button type="button" className="btn btn-danger" onClick={() => entry && onDelete(entry)}>
-            Delete
+            {t('delete')}
           </button>
           <span className="spacer" />
           <button type="button" className="btn" onClick={onClose}>
-            Cancel
+            {t('cancel')}
           </button>
           <button type="submit" className="btn btn-primary">
-            Save
+            {t('save')}
           </button>
         </div>
       </form>

@@ -34,9 +34,9 @@ export function parseEntry(text: string): ParsedEntry {
     const lower = word.toLowerCase()
     if (i === amountIndex) {
       amount = parseAmount(word)
-    } else if (lower === 'yesterday') {
+    } else if (lower === 'yesterday' || lower === 'ieri') {
       dayOffset = -1
-    } else if (lower === 'today') {
+    } else if (lower === 'today' || lower === 'oggi') {
       dayOffset = 0
     } else {
       rest.push(word)

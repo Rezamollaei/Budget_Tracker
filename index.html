@@ -11,6 +11,14 @@
     <link rel="apple-touch-icon" href="/icon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>Budget Tracker</title>
+    <script>
+      // Apply the saved theme and language before the page paints, to avoid a flash.
+      try {
+        var p = JSON.parse(localStorage.getItem('budget-tracker:prefs') || '{}')
+        if (p.theme === 'light' || p.theme === 'dark') document.documentElement.setAttribute('data-theme', p.theme)
+        if (p.lang) document.documentElement.lang = p.lang
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

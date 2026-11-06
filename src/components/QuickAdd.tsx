@@ -6,6 +6,7 @@ import { addDays, formatDayHeading } from '../lib/dates'
 import { formatMoney } from '../lib/money'
 import { favorites } from '../lib/stats'
 import { CategoryPicker } from './CategoryPicker'
+import { useI18n } from '../i18n'
 
 export type NewExpense = Omit<Expense, 'id' | 'createdAt'>
 export type NewIncome = Omit<Income, 'id' | 'createdAt'>
@@ -21,6 +22,7 @@ interface Props {
 type Mode = 'expense' | 'income'
 
 export const QuickAdd = forwardRef<HTMLInputElement, Props>(function QuickAdd({ expenses, currency, today, onAdd, onAddIncome }, inputRef) {
+  const { t, category: categoryName } = useI18n()
   const [mode, setMode] = useState<Mode>('expense')
   const [text, setText] = useState('')
   const [manualCategory, setManualCategory] = useState<CategoryId | null>(null)
@@ -46,28 +48,29 @@ export const QuickAdd = forwardRef<HTMLInputElement, Props>(function QuickAdd({ 
   function submit(e: React.FormEvent) {
     e.preventDefault()
     if (parsed.amount === null) {
-      const example = isIncome ? '“salary 2500”' : '“lunch 12.50”'
-      setError(text.trim() ? `Add an amount, for example ${example}.` : `Type a description and amount, for example ${example}.`)
+      const example = t(isIncome ? 'exampleIncome' : 'exampleExpense')
+      setError(t(text.trim() ? 'errNoAmount' : 'errEmpty', { example }))
       return
     }
     if (isIncome) {
-      onAddIncome({ amount: parsed.amount, description: parsed.description || 'Income', date })
+      onAddIncome({ amount: parsed.amount, description: parsed.description || t('income'), date })
     } else {
-      onAdd({ amount: parsed.amount, description: parsed.description || getCategory(category).label, category, date })
+      onAdd({ amount: parsed.amount, description: parsed.description || categoryName(category), category, date })
     }
     reset()
   }
 
   const cat = getCategory(category)
   const icon = isIncome ? '💰' : cat.emoji
-  const label = parsed.description || (isIncome ? 'Income' : cat.label)
+  const label = parsed.description || (isIncome ? t('income') : categoryName(cat.id))
+  const dayLabels = { today: t('today'), yesterday: t('yesterday') }
 
   return (
     <section className={`card quick-add${isIncome ? ' quick-add-income' : ''}`} aria-labelledby="quick-add-title">
       <h2 id="quick-add-title" className="sr-only">
-        Add an expense or income
+        {t('addTitle')}
       </h2>
-      <div className="segmented" role="radiogroup" aria-label="Type">
+      <div className="segmented" role="radiogroup" aria-label={t('typeAria')}>
         {(['expense', 'income'] as const).map((m) => (
           <button
             key={m}
@@ -81,7 +84,7 @@ export const QuickAdd = forwardRef<HTMLInputElement, Props>(function QuickAdd({ 
               if (typeof inputRef !== 'function') inputRef?.current?.focus()
             }}
           >
-            {m === 'expense' ? 'Expense' : 'Income'}
+            {t(m)}
           </button>
         ))}
       </div>
@@ -95,14 +98,14 @@ export const QuickAdd = forwardRef<HTMLInputElement, Props>(function QuickAdd({ 
               setText(e.target.value)
               setError('')
             }}
-            placeholder={mode === 'income' ? 'salary 2500' : 'coffee 4.50'}
-            aria-label={mode === 'income' ? 'What money came in? Type a description and an amount' : 'What did you spend? Type a description and an amount'}
+            placeholder={t(mode === 'income' ? 'placeholderIncome' : 'placeholderExpense')}
+            aria-label={t(mode === 'income' ? 'ariaIncome' : 'ariaExpense')}
             aria-describedby="entry-help"
             autoComplete="off"
             enterKeyHint="done"
           />
           <button type="submit" className="btn btn-primary">
-            Add
+            {t('add')}
           </button>
         </div>
 
@@ -120,30 +123,24 @@ export const QuickAdd = forwardRef<HTMLInputElement, Props>(function QuickAdd({ 
                 {formatMoney(parsed.amount, currency)}
               </span>
             ) : (
-              <em>no amount yet</em>
+              <em>{t('noAmountYet')}</em>
             )}
             {' · '}
             {isIncome ? (
-              'Income'
+              t('income')
             ) : (
               <button type="button" className="link-btn" onClick={() => setShowDetails((v) => !v)}>
-                {cat.label}
+                {categoryName(cat.id)}
               </button>
             )}
             {' · '}
             <button type="button" className="link-btn" onClick={() => setShowDetails((v) => !v)}>
-              {formatDayHeading(date, today)}
+              {formatDayHeading(date, today, dayLabels)}
             </button>
           </p>
         ) : (
           <p className="entry-help" id="entry-help">
-            {mode === 'income' ? (
-              <>Salary, freelance work, gifts… type a description and amount, then press Enter.</>
-            ) : (
-              <>
-                Type a description and amount, then press Enter. Add “yesterday” for yesterday. Start with <kbd>+</kbd> for income, like “+salary 2500”.
-              </>
-            )}
+            {t(mode === 'income' ? 'helpIncome' : 'helpExpense')}
           </p>
         )}
 
@@ -151,7 +148,7 @@ export const QuickAdd = forwardRef<HTMLInputElement, Props>(function QuickAdd({ 
           <div className="details">
             {!isIncome && <CategoryPicker value={category} onChange={setManualCategory} guessed={manualCategory === null && guessed !== null} />}
             <label className="date-field">
-              Date
+              {t('date')}
               <input type="date" value={date} max={today} onChange={(e) => setManualDate(e.target.value || null)} />
             </label>
           </div>
@@ -160,7 +157,7 @@ export const QuickAdd = forwardRef<HTMLInputElement, Props>(function QuickAdd({ 
 
       {mode === 'expense' && favs.length > 0 && (
         <div className="favorites">
-          <span className="favorites-label">Add again with one tap</span>
+          <span className="favorites-label">{t('favorites')}</span>
           <div className="chips">
             {favs.map((f) => {
               const c = getCategory(f.category)

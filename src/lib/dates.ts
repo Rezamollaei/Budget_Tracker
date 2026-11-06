@@ -1,3 +1,5 @@
+import { formatLocale } from './locale'
+
 export function toISODate(d: Date): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -37,13 +39,13 @@ export function daysInMonth(key: string): number {
 
 export function formatMonth(key: string): string {
   const [y, m] = key.split('-').map(Number)
-  return new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date(y, m - 1, 1))
+  return new Intl.DateTimeFormat(formatLocale(), { month: 'long', year: 'numeric' }).format(new Date(y, m - 1, 1))
 }
 
-export function formatDayHeading(iso: string, today: string): string {
-  if (iso === today) return 'Today'
-  if (iso === addDays(today, -1)) return 'Yesterday'
-  return new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'short' }).format(parseISO(iso))
+export function formatDayHeading(iso: string, today: string, labels = { today: 'Today', yesterday: 'Yesterday' }): string {
+  if (iso === today) return labels.today
+  if (iso === addDays(today, -1)) return labels.yesterday
+  return new Intl.DateTimeFormat(formatLocale(), { weekday: 'long', day: 'numeric', month: 'short' }).format(parseISO(iso))
 }
 
 export function isValidISODate(value: unknown): value is string {

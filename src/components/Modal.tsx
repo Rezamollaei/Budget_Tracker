@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import { useI18n } from '../i18n'
 
 interface Props {
   open: boolean
@@ -9,6 +10,7 @@ interface Props {
 
 export function Modal({ open, title, onClose, children }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
+  const { t } = useI18n()
 
   useEffect(() => {
     const d = ref.current
@@ -30,7 +32,7 @@ export function Modal({ open, title, onClose, children }: Props) {
         <div className="modal-body">
           <header className="modal-header">
             <h2>{title}</h2>
-            <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+            <button type="button" className="icon-btn" onClick={onClose} aria-label={t('close')}>
               ✕
             </button>
           </header>
