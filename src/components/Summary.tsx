@@ -8,6 +8,28 @@ interface Props {
   onSetBudget: () => void
 }
 
+function MonthFlow({ summary, currency }: { summary: MonthSummary; currency: string }) {
+  if (summary.income <= 0) return null
+  const money = (n: number) => formatMoney(n, currency)
+  const negative = summary.saved < 0
+  return (
+    <dl className="flow">
+      <div>
+        <dt>Income</dt>
+        <dd className="income-text">{money(summary.income)}</dd>
+      </div>
+      <div>
+        <dt>Spent</dt>
+        <dd>{money(summary.spent)}</dd>
+      </div>
+      <div>
+        <dt>{negative ? 'Overspent' : 'Saved'}</dt>
+        <dd className={negative ? 'danger-text' : 'income-text'}>{money(Math.abs(summary.saved))}</dd>
+      </div>
+    </dl>
+  )
+}
+
 export function Summary({ summary, currency, isCurrentMonth, onSetBudget }: Props) {
   const { spent, budget, remaining, daysLeft, perDay } = summary
   const money = (n: number) => formatMoney(n, currency)
@@ -17,6 +39,7 @@ export function Summary({ summary, currency, isCurrentMonth, onSetBudget }: Prop
       <section className="card summary">
         <p className="summary-label">Spent this month</p>
         <p className="summary-big">{money(spent)}</p>
+        <MonthFlow summary={summary} currency={currency} />
         <p className="summary-sub">
           Set a monthly budget to see how much you have left each day.{' '}
           <button type="button" className="link-btn" onClick={onSetBudget}>
@@ -62,6 +85,7 @@ export function Summary({ summary, currency, isCurrentMonth, onSetBudget }: Prop
           )}
         </p>
       )}
+      <MonthFlow summary={summary} currency={currency} />
     </section>
   )
 }

@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { parseEntry } from './parse'
 import { parseAmount } from './money'
 import { guessCategory } from './categories'
-import { budgetFor, favorites, groupByDay, summarizeMonth } from './stats'
+import { budgetFor, favorites, groupByDay, summarizeMonth, toEntries } from './stats'
+import { summarizeAssets, formatUpdated } from './assets'
 import { mergeStates, parseImport, emptyState } from './storage'
 import { toCSV } from './csv'
 import { addDays, shiftMonth, daysInMonth } from './dates'
-import type { Expense } from './types'
+import type { Expense, Income } from './types'
 
 const exp = (over: Partial<Expense>): Expense => ({
   id: Math.random().toString(36),
@@ -18,9 +19,18 @@ const exp = (over: Partial<Expense>): Expense => ({
   ...over,
 })
 
+const inc = (over: Partial<Income>): Income => ({
+  id: Math.random().toString(36),
+  amount: 100,
+  description: 'Salary',
+  date: '2026-11-06',
+  createdAt: 1,
+  ...over,
+})
+
 describe('parseEntry', () => {
   it('reads amount after the description', () => {
-    expect(parseEntry('coffee 4.50')).toEqual({ amount: 4.5, description: 'Coffee', dayOffset: 0 })
+    expect(parseEntry('coffee 4.50')).toEqual({ amount: 4.5, description: 'Coffee', dayOffset: 0, income: false })
   })
   it('reads amount before the description', () => {
     expect(parseEntry('12 lunch with Sam')).toMatchObject({ amount: 12, description: 'Lunch with Sam' })
@@ -34,7 +44,11 @@ describe('parseEntry', () => {
     expect(parseEntry('taxi $18').amount).toBe(18)
   })
   it('understands "yesterday"', () => {
-    expect(parseEntry('taxi 18 yesterday')).toEqual({ amount: 18, description: 'Taxi', dayOffset: -1 })
+    expect(parseEntry('taxi 18 yesterday')).toEqual({ amount: 18, description: 'Taxi', dayOffset: -1, income: false })
+  })
+  it('treats a leading + as income', () => {
+    expect(parseEntry('+salary 2500')).toMatchObject({ amount: 2500, description: 'Salary', income: true })
+    expect(parseEntry('+ 300 freelance')).toMatchObject({ amount: 300, description: 'Freelance', income: true })
   })
   it('does not treat words with digits as amounts', () => {
     expect(parseEntry('7up')).toMatchObject({ amount: null, description: '7up' })
@@ -75,7 +89,7 @@ describe('budgets and summaries', () => {
 
   it('computes remaining and safe daily spend for the current month', () => {
     const items = [exp({ amount: 100.1, category: 'food' }), exp({ amount: 50.2, category: 'bills' }), exp({ amount: 99, date: '2026-10-31' })]
-    const s = summarizeMonth(items, '2026-11', 1000, '2026-11-06')
+    const s = summarizeMonth(items, [], '2026-11', 1000, '2026-11-06')
     expect(s.spent).toBe(150.3)
     expect(s.remaining).toBe(849.7)
     expect(s.daysLeft).toBe(25)
@@ -84,19 +98,36 @@ describe('budgets and summaries', () => {
   })
 
   it('has no days left in past months and no per-day when over budget', () => {
-    expect(summarizeMonth([], '2026-10', 100, '2026-11-06').daysLeft).toBe(0)
-    expect(summarizeMonth([exp({ amount: 200 })], '2026-11', 100, '2026-11-06').perDay).toBe(0)
+    expect(summarizeMonth([], [], '2026-10', 100, '2026-11-06').daysLeft).toBe(0)
+    expect(summarizeMonth([exp({ amount: 200 })], [], '2026-11', 100, '2026-11-06').perDay).toBe(0)
   })
 
-  it('groups by day, newest first', () => {
-    const g = groupByDay([
-      exp({ date: '2026-11-01', createdAt: 1, amount: 1 }),
-      exp({ date: '2026-11-05', createdAt: 2, amount: 2 }),
-      exp({ date: '2026-11-05', createdAt: 3, amount: 3 }),
-    ])
-    expect(g.map((d) => [d.date, d.total, d.items.map((i) => i.amount)])).toEqual([
-      ['2026-11-05', 5, [3, 2]],
-      ['2026-11-01', 1, [1]],
+  it('adds up income and savings for the month', () => {
+    const s = summarizeMonth(
+      [exp({ amount: 300 }), exp({ amount: 50, date: '2026-10-02' })],
+      [inc({ amount: 2000 }), inc({ amount: 150.5 }), inc({ amount: 999, date: '2026-10-01' })],
+      '2026-11',
+      0,
+      '2026-11-06',
+    )
+    expect([s.income, s.spent, s.saved]).toEqual([2150.5, 300, 1850.5])
+    expect(summarizeMonth([exp({ amount: 300 })], [inc({ amount: 100 })], '2026-11', 0, '2026-11-06').saved).toBe(-200)
+  })
+
+  it('groups by day, newest first, with spent and earned per day', () => {
+    const g = groupByDay(
+      toEntries(
+        [
+          exp({ date: '2026-11-01', createdAt: 1, amount: 1 }),
+          exp({ date: '2026-11-05', createdAt: 2, amount: 2 }),
+          exp({ date: '2026-11-05', createdAt: 3, amount: 3 }),
+        ],
+        [inc({ date: '2026-11-05', createdAt: 4, amount: 100 })],
+      ),
+    )
+    expect(g.map((d) => [d.date, d.spent, d.earned, d.items.map((i) => i.amount)])).toEqual([
+      ['2026-11-05', 5, 100, [100, 3, 2]],
+      ['2026-11-01', 1, 0, [1]],
     ])
   })
 
@@ -107,6 +138,25 @@ describe('budgets and summaries', () => {
       exp({ description: 'Once', amount: 9 }),
     ])
     expect(f).toEqual([{ description: 'coffee', amount: 4.5, category: 'food', count: 2 }])
+  })
+})
+
+describe('what I own', () => {
+  it('subtracts what I owe (e.g. Splitwise) from what I own', () => {
+    const s = summarizeAssets([
+      { id: '1', name: 'Bank', kind: 'bank', value: 1000, updatedAt: 1 },
+      { id: '2', name: 'Gold', kind: 'gold', value: 400.5, updatedAt: 1 },
+      { id: '3', name: 'Splitwise – owed to me', kind: 'owed', value: 60, updatedAt: 1 },
+      { id: '4', name: 'Splitwise – I owe', kind: 'debt', value: 85.25, updatedAt: 1 },
+    ])
+    expect([s.owned, s.owing, s.total]).toEqual([1460.5, 85.25, 1375.25])
+    expect(s.byKind[0]).toEqual({ kind: 'bank', total: 1000, count: 1 })
+  })
+  it('describes when a value was last updated', () => {
+    const day = 86_400_000
+    expect(formatUpdated(10 * day, 10 * day + 5)).toBe('today')
+    expect(formatUpdated(0, day)).toBe('yesterday')
+    expect(formatUpdated(0, 45 * day)).toBe('1 month ago')
   })
 })
 
@@ -121,12 +171,36 @@ describe('import', () => {
 
   it('round-trips its own backups and merges without duplicates', () => {
     const current = { ...emptyState(), currency: 'EUR', budgets: { '2026-11': 900 }, expenses: [exp({ id: 'a' })] }
-    const incoming = parseImport(JSON.stringify({ ...current, budgets: { '2026-10': 100, '2026-11': 1 }, expenses: [exp({ id: 'a' }), exp({ id: 'b' })] }), '2026-11-06')!
+    const incoming = parseImport(
+      JSON.stringify({ ...current, budgets: { '2026-10': 100, '2026-11': 1 }, expenses: [exp({ id: 'a' }), exp({ id: 'b' })] }),
+      '2026-11-06',
+    )!
     const { state, added } = mergeStates(current, incoming)
     expect(added).toBe(1)
     expect(state.expenses.map((e) => e.id)).toEqual(['a', 'b'])
     expect(state.budgets).toEqual({ '2026-10': 100, '2026-11': 900 })
     expect(state.currency).toBe('EUR')
+  })
+
+  it('loads backups made before income and assets existed', () => {
+    const old = JSON.stringify({ version: 1, currency: 'EUR', budgets: {}, expenses: [exp({ id: 'x' })] })
+    const s = parseImport(old, '2026-11-06')!
+    expect(s.incomes).toEqual([])
+    expect(s.assets).toEqual([])
+    expect(s.expenses).toHaveLength(1)
+  })
+
+  it('merges income and assets too', () => {
+    const a = { ...emptyState(), incomes: [inc({ id: 'i1' })], assets: [{ id: 'g', name: 'Gold', kind: 'gold' as const, value: 500, updatedAt: 1 }] }
+    const b = {
+      ...emptyState(),
+      incomes: [inc({ id: 'i1' }), inc({ id: 'i2' })],
+      assets: [{ id: 'c', name: 'Cash', kind: 'cash' as const, value: 50, updatedAt: 1 }],
+    }
+    const { state, added } = mergeStates(a, b)
+    expect(added).toBe(2)
+    expect(state.incomes.map((i) => i.id)).toEqual(['i1', 'i2'])
+    expect(state.assets.map((x) => x.id)).toEqual(['g', 'c'])
   })
 
   it('rejects files that are not budget data', () => {
@@ -136,9 +210,9 @@ describe('import', () => {
 })
 
 describe('csv and dates', () => {
-  it('escapes CSV cells', () => {
-    expect(toCSV([exp({ description: 'Dinner, "fancy"', category: 'food', amount: 30 })])).toBe(
-      'Date,Description,Category,Amount\n2026-11-06,"Dinner, ""fancy""",Food & drink,30.00\n',
+  it('escapes CSV cells and includes income', () => {
+    expect(toCSV([exp({ description: 'Dinner, "fancy"', category: 'food', amount: 30 })], [inc({ amount: 2000, createdAt: 2 })])).toBe(
+      'Date,Type,Description,Category,Amount\n2026-11-06,Expense,"Dinner, ""fancy""",Food & drink,30.00\n2026-11-06,Income,Salary,Income,2000.00\n',
     )
   })
   it('handles month and day arithmetic', () => {

@@ -1,12 +1,13 @@
-import type { AppState, Expense } from './types'
+import type { AppState, Asset, Expense, Income } from './types'
 import { guessCategory, isCategoryId } from './categories'
+import { isAssetKind } from './assets'
 import { isValidISODate, monthKey } from './dates'
 import { roundMoney } from './money'
 
 const STORAGE_KEY = 'budget-tracker:v1'
 
 export function emptyState(): AppState {
-  return { version: 1, currency: 'USD', budgets: {}, expenses: [] }
+  return { version: 1, currency: 'USD', budgets: {}, expenses: [], incomes: [], assets: [] }
 }
 
 export function newId(): string {
@@ -30,6 +31,38 @@ function toExpense(raw: unknown): Expense | null {
   }
 }
 
+function toIncome(raw: unknown): Income | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const amount = Number(r.amount)
+  if (!Number.isFinite(amount) || amount <= 0 || !isValidISODate(r.date)) return null
+  return {
+    id: typeof r.id === 'string' && r.id ? r.id : newId(),
+    amount: roundMoney(amount),
+    description: typeof r.description === 'string' ? r.description : '',
+    date: r.date,
+    createdAt: typeof r.createdAt === 'number' ? r.createdAt : Date.now(),
+  }
+}
+
+function toAsset(raw: unknown): Asset | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const value = Number(r.value)
+  if (!Number.isFinite(value) || value < 0) return null
+  return {
+    id: typeof r.id === 'string' && r.id ? r.id : newId(),
+    name: typeof r.name === 'string' && r.name.trim() ? r.name : 'Untitled',
+    kind: isAssetKind(r.kind) ? r.kind : 'other',
+    value: roundMoney(value),
+    updatedAt: typeof r.updatedAt === 'number' ? r.updatedAt : Date.now(),
+  }
+}
+
+function list<T>(raw: unknown, convert: (item: unknown) => T | null): T[] {
+  return Array.isArray(raw) ? raw.map(convert).filter((x): x is T => x !== null) : []
+}
+
 function toState(raw: unknown): AppState | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
@@ -44,7 +77,10 @@ function toState(raw: unknown): AppState | null {
     version: 1,
     currency: typeof r.currency === 'string' && r.currency ? r.currency : 'USD',
     budgets,
-    expenses: r.expenses.map(toExpense).filter((e): e is Expense => e !== null),
+    expenses: list(r.expenses, toExpense),
+    // Saved before income and assets existed? Those fields are simply missing.
+    incomes: list(r.incomes, toIncome),
+    assets: list(r.assets, toAsset),
   }
 }
 
@@ -98,21 +134,33 @@ export function parseImport(text: string, today: string): AppState | null {
     currency: 'USD',
     budgets: Number.isFinite(legacyBudget) && legacyBudget > 0 ? { [monthKey(today)]: legacyBudget } : {},
     expenses,
+    incomes: [],
+    assets: [],
   }
 }
 
 /** Merge imported data into the current data without losing anything. */
+function mergeById<T extends { id: string }>(current: T[], incoming: T[]): { merged: T[]; added: number } {
+  const ids = new Set(current.map((x) => x.id))
+  const fresh = incoming.filter((x) => !ids.has(x.id))
+  return { merged: [...current, ...fresh], added: fresh.length }
+}
+
 export function mergeStates(current: AppState, incoming: AppState): { state: AppState; added: number } {
-  const ids = new Set(current.expenses.map((e) => e.id))
-  const fresh = incoming.expenses.filter((e) => !ids.has(e.id))
-  const isEmpty = current.expenses.length === 0 && Object.keys(current.budgets).length === 0
+  const expenses = mergeById(current.expenses, incoming.expenses)
+  const incomes = mergeById(current.incomes, incoming.incomes)
+  const assets = mergeById(current.assets, incoming.assets)
+  const isEmpty =
+    current.expenses.length + current.incomes.length + current.assets.length === 0 && Object.keys(current.budgets).length === 0
   return {
-    added: fresh.length,
+    added: expenses.added + incomes.added + assets.added,
     state: {
       version: 1,
       currency: isEmpty ? incoming.currency : current.currency,
       budgets: { ...incoming.budgets, ...current.budgets },
-      expenses: [...current.expenses, ...fresh],
+      expenses: expenses.merged,
+      incomes: incomes.merged,
+      assets: assets.merged,
     },
   }
 }

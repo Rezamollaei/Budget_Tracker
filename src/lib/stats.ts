@@ -1,4 +1,4 @@
-import type { CategoryId, Expense } from './types'
+import type { CategoryId, Expense, Income } from './types'
 import { daysInMonth, monthKey } from './dates'
 import { normalizeText } from './categories'
 import { roundMoney } from './money'
@@ -14,7 +14,12 @@ export function budgetFor(budgets: Record<string, number>, key: string): number 
 
 export interface MonthSummary {
   items: Expense[]
+  incomeItems: Income[]
   spent: number
+  /** Money that came in this month. */
+  income: number
+  /** income - spent; negative means you spent more than you earned. */
+  saved: number
   budget: number
   remaining: number
   /** Days left in the month including today; 0 for past months. */
@@ -24,9 +29,11 @@ export interface MonthSummary {
   byCategory: { category: CategoryId; total: number; count: number }[]
 }
 
-export function summarizeMonth(expenses: Expense[], key: string, budget: number, today: string): MonthSummary {
+export function summarizeMonth(expenses: Expense[], incomes: Income[], key: string, budget: number, today: string): MonthSummary {
   const items = expenses.filter((e) => monthKey(e.date) === key)
+  const incomeItems = incomes.filter((i) => monthKey(i.date) === key)
   const spent = roundMoney(items.reduce((s, e) => s + e.amount, 0))
+  const income = roundMoney(incomeItems.reduce((s, i) => s + i.amount, 0))
   const remaining = roundMoney(budget - spent)
 
   const currentKey = monthKey(today)
@@ -45,26 +52,34 @@ export function summarizeMonth(expenses: Expense[], key: string, budget: number,
     .map(([category, t]) => ({ category, total: roundMoney(t.total), count: t.count }))
     .sort((a, b) => b.total - a.total)
 
-  return { items, spent, budget, remaining, daysLeft, perDay, byCategory }
+  return { items, incomeItems, spent, income, saved: roundMoney(income - spent), budget, remaining, daysLeft, perDay, byCategory }
+}
+
+export type Entry = (Expense & { type: 'expense' }) | (Income & { type: 'income' })
+
+export function toEntries(expenses: Expense[], incomes: Income[]): Entry[] {
+  return [...expenses.map((e) => ({ ...e, type: 'expense' as const })), ...incomes.map((i) => ({ ...i, type: 'income' as const }))]
 }
 
 export interface DayGroup {
   date: string
-  total: number
-  items: Expense[]
+  spent: number
+  earned: number
+  items: Entry[]
 }
 
-export function groupByDay(items: Expense[]): DayGroup[] {
+export function groupByDay(items: Entry[]): DayGroup[] {
   const sorted = [...items].sort((a, b) => (a.date === b.date ? b.createdAt - a.createdAt : a.date < b.date ? 1 : -1))
   const groups: DayGroup[] = []
   for (const e of sorted) {
-    const last = groups[groups.length - 1]
-    if (last && last.date === e.date) {
-      last.items.push(e)
-      last.total = roundMoney(last.total + e.amount)
-    } else {
-      groups.push({ date: e.date, total: e.amount, items: [e] })
+    let last = groups[groups.length - 1]
+    if (!last || last.date !== e.date) {
+      last = { date: e.date, spent: 0, earned: 0, items: [] }
+      groups.push(last)
     }
+    last.items.push(e)
+    if (e.type === 'income') last.earned = roundMoney(last.earned + e.amount)
+    else last.spent = roundMoney(last.spent + e.amount)
   }
   return groups
 }

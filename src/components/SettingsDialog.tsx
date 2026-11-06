@@ -8,7 +8,7 @@ interface Props {
   month: string
   currency: string
   budget: number
-  expenseCount: number
+  itemCount: number
   onClose: () => void
   onSave: (currency: string, budget: number) => void
   onExportCSV: () => void
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export function SettingsDialog(props: Props) {
-  const { open, month, currency, budget, expenseCount, onClose, onSave, onExportCSV, onBackup, onImport, onEraseAll } = props
+  const { open, month, currency, budget, itemCount, onClose, onSave, onExportCSV, onBackup, onImport, onEraseAll } = props
   const [cur, setCur] = useState(currency)
   const [amount, setAmount] = useState('')
   const [error, setError] = useState('')
@@ -81,11 +81,11 @@ export function SettingsDialog(props: Props) {
       <hr />
       <h3>Your data</h3>
       <p className="hint">
-        Everything is stored privately in this browser ({expenseCount} {expenseCount === 1 ? 'expense' : 'expenses'}). Download a backup now and then,
+        Everything is stored privately in this browser ({itemCount} {itemCount === 1 ? 'item' : 'items'}). Download a backup now and then,
         or to move to another device.
       </p>
       <div className="data-actions">
-        <button type="button" className="btn" onClick={onExportCSV} disabled={expenseCount === 0}>
+        <button type="button" className="btn" onClick={onExportCSV} disabled={itemCount === 0}>
           Export CSV (Excel)
         </button>
         <button type="button" className="btn" onClick={onBackup}>
@@ -107,7 +107,7 @@ export function SettingsDialog(props: Props) {
         />
       </div>
       <p className="hint">Import also accepts the <code>budget_data.json</code> file from the old Python version.</p>
-      <button type="button" className="btn btn-danger btn-small" onClick={onEraseAll} disabled={expenseCount === 0}>
+      <button type="button" className="btn btn-danger btn-small" onClick={onEraseAll} disabled={itemCount === 0}>
         Erase all data…
       </button>
     </Modal>

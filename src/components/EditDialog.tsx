@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react'
-import type { CategoryId, Expense } from '../lib/types'
+import type { CategoryId } from '../lib/types'
+import type { Entry } from '../lib/stats'
 import { parseAmount } from '../lib/money'
 import { CategoryPicker } from './CategoryPicker'
 import { Modal } from './Modal'
 
 interface Props {
-  expense: Expense | null
+  entry: Entry | null
   onClose: () => void
-  onSave: (e: Expense) => void
-  onDelete: (e: Expense) => void
+  onSave: (e: Entry) => void
+  onDelete: (e: Entry) => void
 }
 
-export function EditDialog({ expense, onClose, onSave, onDelete }: Props) {
+export function EditDialog({ entry, onClose, onSave, onDelete }: Props) {
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<CategoryId>('other')
@@ -19,25 +20,28 @@ export function EditDialog({ expense, onClose, onSave, onDelete }: Props) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!expense) return
-    setAmount(String(expense.amount))
-    setDescription(expense.description)
-    setCategory(expense.category)
-    setDate(expense.date)
+    if (!entry) return
+    setAmount(String(entry.amount))
+    setDescription(entry.description)
+    setCategory(entry.type === 'expense' ? entry.category : 'other')
+    setDate(entry.date)
     setError('')
-  }, [expense])
+  }, [entry])
 
   function save(e: React.FormEvent) {
     e.preventDefault()
-    if (!expense) return
+    if (!entry) return
     const value = parseAmount(amount)
     if (value === null) return setError('Enter an amount greater than zero.')
     if (!date) return setError('Pick a date.')
-    onSave({ ...expense, amount: value, description: description.trim() || expense.description, category, date })
+    const common = { amount: value, description: description.trim() || entry.description, date }
+    onSave(entry.type === 'expense' ? { ...entry, ...common, category } : { ...entry, ...common })
   }
 
+  const isIncome = entry?.type === 'income'
+
   return (
-    <Modal open={expense !== null} title="Edit expense" onClose={onClose}>
+    <Modal open={entry !== null} title={isIncome ? 'Edit income' : 'Edit expense'} onClose={onClose}>
       <form className="form" onSubmit={save}>
         <label>
           Amount
@@ -51,17 +55,19 @@ export function EditDialog({ expense, onClose, onSave, onDelete }: Props) {
           Date
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
-        <div>
-          <span className="field-label">Category</span>
-          <CategoryPicker value={category} onChange={setCategory} />
-        </div>
+        {!isIncome && (
+          <div>
+            <span className="field-label">Category</span>
+            <CategoryPicker value={category} onChange={setCategory} />
+          </div>
+        )}
         {error && (
           <p className="entry-error" role="alert">
             {error}
           </p>
         )}
         <div className="form-actions">
-          <button type="button" className="btn btn-danger" onClick={() => expense && onDelete(expense)}>
+          <button type="button" className="btn btn-danger" onClick={() => entry && onDelete(entry)}>
             Delete
           </button>
           <span className="spacer" />

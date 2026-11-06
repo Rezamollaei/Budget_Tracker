@@ -166,3 +166,26 @@ hr { border: 0; border-top: 1px solid var(--border); margin: 20px 0 16px; }
   .summary-big { font-size: 2rem; }
   .entry-row .btn { padding: 0 16px; }
 }
+
+/* Tabs and segmented control */
+.tabs { display: flex; gap: 4px; padding: 4px; margin: 4px 0 12px; border-radius: 14px; background: var(--surface-2); width: fit-content; max-width: 100%; }
+.tabs button, .segmented button { border: 0; background: none; cursor: pointer; font-weight: 600; color: var(--muted); border-radius: 10px; }
+.tabs button { min-height: 40px; padding: 0 18px; }
+.tabs button.on, .segmented button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow), 0 0 0 1px var(--border); }
+.segmented { display: inline-flex; gap: 2px; padding: 3px; margin-bottom: 10px; border-radius: 12px; background: var(--surface-2); }
+.segmented button { min-height: 32px; padding: 0 14px; font-size: 0.9rem; }
+.quick-add-income .segmented button.on { color: var(--income); }
+.quick-add-income .entry-input:focus { border-color: var(--income); }
+.quick-add-income .btn-primary { background: var(--income); border-color: var(--income); }
+
+/* Income / saved */
+:root { --income: #15803d; }
+@media (prefers-color-scheme: dark) { :root { --income: #4ade80; } }
+.income-text { color: var(--income); }
+.danger-text { color: var(--danger); }
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; margin: 14px 0 0; }
+.flow div { padding: 10px 12px; border-radius: 12px; background: var(--surface-2); min-width: 0; }
+.flow dt { font-size: 0.8rem; color: var(--muted); }
+.flow dd { margin: 2px 0 0; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.bar-static { cursor: default; }
+.bar-static:hover { background: none; }
