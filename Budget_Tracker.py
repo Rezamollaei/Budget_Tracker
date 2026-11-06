@@ -32,7 +32,7 @@ def load_budget_data(filepath):
 
 def save_budget_details(filepath, initial_budget, expenses):
     data = {
-        'initial_budget ': initial_budget,
+        'initial_budget': initial_budget,
         'expenses': expenses
     }
     with open(filepath, 'w') as file:
