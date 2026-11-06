@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { CategoryId } from '../lib/types'
 import { getCategory, normalizeText } from '../lib/categories'
 import { formatDayHeading } from '../lib/dates'
-import { formatMoney } from '../lib/money'
+import { formatEarn, formatSpend } from '../lib/money'
 import { groupByDay, type Entry } from '../lib/stats'
 import { useI18n } from '../i18n'
 
@@ -49,9 +49,9 @@ export function ExpenseList({ items, currency, today, category, onEdit }: Props)
             <div className="day-head">
               <span>{formatDayHeading(g.date, today, dayLabels)}</span>
               <span>
-                {g.earned > 0 && <span className="income-text">+{formatMoney(g.earned, currency)}</span>}
+                {g.earned > 0 && <span className="income-text">{formatEarn(g.earned, currency)}</span>}
                 {g.earned > 0 && g.spent > 0 && ' · '}
-                {g.spent > 0 && formatMoney(g.spent, currency)}
+                {g.spent > 0 && <span className="danger-text">{formatSpend(g.spent, currency)}</span>}
               </span>
             </div>
             <ul className="rows">
@@ -59,7 +59,7 @@ export function ExpenseList({ items, currency, today, category, onEdit }: Props)
                 const isIncome = e.type === 'income'
                 const c = isIncome ? null : getCategory(e.category)
                 const color = c ? c.color : '#16a34a'
-                const amount = `${isIncome ? '+' : ''}${formatMoney(e.amount, currency)}`
+                const amount = isIncome ? formatEarn(e.amount, currency) : formatSpend(e.amount, currency)
                 return (
                   <li key={e.id}>
                     <button type="button" className="row" onClick={() => onEdit(e)} aria-label={t('editAria', { name: e.description, amount })}>
@@ -70,7 +70,7 @@ export function ExpenseList({ items, currency, today, category, onEdit }: Props)
                         <span className="row-title">{e.description}</span>
                         <span className="row-sub">{c ? categoryName(c.id) : t('income')}</span>
                       </span>
-                      <span className={`row-amount${isIncome ? ' income-text' : ''}`}>{amount}</span>
+                      <span className={`row-amount ${isIncome ? 'income-text' : 'danger-text'}`}>{amount}</span>
                     </button>
                   </li>
                 )

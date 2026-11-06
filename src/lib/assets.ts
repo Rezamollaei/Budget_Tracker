@@ -1,4 +1,4 @@
-import type { Asset, AssetKind } from './types'
+import type { Asset, AssetKind, Expense, Income } from './types'
 import { roundMoney } from './money'
 import { translate, type Lang } from './i18n'
 
@@ -22,6 +22,45 @@ export const ASSET_KINDS: AssetKindInfo[] = [
   { id: 'debt', emoji: '🧾', color: '#ef4444', liability: true },
   { id: 'other', emoji: '💼', color: '#94a3b8' },
 ]
+
+/** Kinds that expenses can be paid from and income paid into. */
+export const ACCOUNT_KINDS: AssetKind[] = ['cash', 'bank', 'savings']
+
+export function isAccount(a: Asset): boolean {
+  return ACCOUNT_KINDS.includes(a.kind)
+}
+
+/**
+ * Current values: each account's typed-in balance, plus income paid into it and
+ * minus expenses paid from it since that balance was typed in.
+ */
+export function withActivity(assets: Asset[], expenses: Expense[], incomes: Income[]): Asset[] {
+  const delta = new Map<string, number>()
+  const since = new Map(assets.filter(isAccount).map((a) => [a.id, a.updatedAt]))
+  const apply = (accountId: string | undefined, createdAt: number, amount: number) => {
+    if (!accountId) return
+    const from = since.get(accountId)
+    if (from === undefined || createdAt <= from) return
+    delta.set(accountId, (delta.get(accountId) ?? 0) + amount)
+  }
+  for (const e of expenses) apply(e.accountId, e.createdAt, -e.amount)
+  for (const i of incomes) apply(i.accountId, i.createdAt, i.amount)
+  return assets.map((a) => (delta.has(a.id) ? { ...a, value: roundMoney(a.value + delta.get(a.id)!) } : a))
+}
+
+/**
+ * The account to pre-select: the one you used last for this kind of entry, if it
+ * still exists, otherwise the first cash account (expenses) or bank account (income).
+ */
+export function defaultAccountId(accounts: Asset[], history: { accountId?: string; createdAt: number }[], prefer: AssetKind): string | undefined {
+  const ids = new Set(accounts.map((a) => a.id))
+  let latest: { accountId?: string; createdAt: number } | undefined
+  for (const h of history) {
+    if (h.accountId && ids.has(h.accountId) && (!latest || h.createdAt > latest.createdAt)) latest = h
+  }
+  if (latest) return latest.accountId
+  return (accounts.find((a) => a.kind === prefer) ?? accounts[0])?.id
+}
 
 /** Kinds offered as one-tap starting points in the "add" form. */
 export const ASSET_PRESETS: AssetKind[] = ['cash', 'bank', 'savings', 'gold', 'splitwise']

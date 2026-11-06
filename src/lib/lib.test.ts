@@ -267,3 +267,49 @@ describe('amount inputs', () => {
     expect(amountForInput(35.4)).toBe('35.4')
   })
 })
+
+describe('accounts linked to spending', () => {
+  const t0 = 1000
+  const cash = { id: 'cash', name: 'Cash', kind: 'cash' as const, value: 100, updatedAt: t0 }
+  const bank = { id: 'bank', name: 'Bank', kind: 'bank' as const, value: 2000, updatedAt: t0 }
+  const gold = { id: 'gold', name: 'Gold', kind: 'gold' as const, value: 500, updatedAt: t0 }
+
+  it('applies expenses and income added after the balance was typed in', async () => {
+    const { withActivity } = await import('./assets')
+    const out = withActivity(
+      [cash, bank, gold],
+      [
+        exp({ amount: 4.5, accountId: 'cash', createdAt: t0 + 1 }),
+        exp({ amount: 30, accountId: 'bank', createdAt: t0 + 2 }),
+        exp({ amount: 99, accountId: 'cash', createdAt: t0 - 1 }), // before the balance was set
+        exp({ amount: 7, createdAt: t0 + 3 }), // not linked
+        exp({ amount: 50, accountId: 'gold', createdAt: t0 + 4 }), // gold is not an account
+        exp({ amount: 50, accountId: 'deleted', createdAt: t0 + 4 }),
+      ],
+      [inc({ amount: 1800, accountId: 'bank', createdAt: t0 + 5 })],
+    )
+    expect(out.map((a) => [a.id, a.value])).toEqual([
+      ['cash', 95.5],
+      ['bank', 3770],
+      ['gold', 500],
+    ])
+  })
+
+  it('pre-selects the last used account, else cash for expenses and bank for income', async () => {
+    const { defaultAccountId } = await import('./assets')
+    expect(defaultAccountId([bank, cash], [], 'cash')).toBe('cash')
+    expect(defaultAccountId([bank, cash], [], 'bank')).toBe('bank')
+    expect(defaultAccountId([bank, cash], [{ accountId: 'bank', createdAt: 5 }, { accountId: 'cash', createdAt: 3 }], 'cash')).toBe('bank')
+    expect(defaultAccountId([cash], [{ accountId: 'gone', createdAt: 9 }], 'bank')).toBe('cash')
+    expect(defaultAccountId([], [], 'cash')).toBeUndefined()
+  })
+
+  it('keeps the account link when loading a backup', () => {
+    const s = parseImport(
+      JSON.stringify({ version: 1, currency: 'EUR', budgets: {}, expenses: [exp({ id: 'e', accountId: 'cash' })], incomes: [inc({ id: 'i' })] }),
+      '2026-11-06',
+    )!
+    expect(s.expenses[0].accountId).toBe('cash')
+    expect('accountId' in s.incomes[0]).toBe(false)
+  })
+})

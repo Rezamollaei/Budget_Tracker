@@ -36,6 +36,16 @@ export function parseAmount(text: string): number | null {
   return Number.isFinite(n) && n > 0 ? roundMoney(n) : null
 }
 
+/** Money going out: "−€4.50". */
+export function formatSpend(amount: number, currency: string): string {
+  return `−${formatMoney(amount, currency)}`
+}
+
+/** Money coming in: "+€4.50". */
+export function formatEarn(amount: number, currency: string): string {
+  return `+${formatMoney(amount, currency)}`
+}
+
 /** An amount as the user would type it: "35.4" in English, "35,4" in Italian. */
 export function amountForInput(amount: number): string {
   const s = String(amount)

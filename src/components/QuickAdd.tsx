@@ -1,9 +1,10 @@
 import { forwardRef, useMemo, useState } from 'react'
-import type { CategoryId, Expense, Income } from '../lib/types'
+import type { Asset, CategoryId, Expense, Income } from '../lib/types'
 import { parseEntry } from '../lib/parse'
 import { getCategory, guessCategory } from '../lib/categories'
 import { addDays, formatDayHeading } from '../lib/dates'
-import { formatMoney } from '../lib/money'
+import { formatEarn, formatMoney, formatSpend } from '../lib/money'
+import { defaultAccountId, getAssetKind } from '../lib/assets'
 import { favorites } from '../lib/stats'
 import { CategoryPicker } from './CategoryPicker'
 import { useI18n } from '../i18n'
@@ -13,6 +14,9 @@ export type NewIncome = Omit<Income, 'id' | 'createdAt'>
 
 interface Props {
   expenses: Expense[]
+  incomes: Income[]
+  /** Cash, bank and savings accounts with their current balances. */
+  accounts: Asset[]
   currency: string
   today: string
   onAdd: (e: NewExpense) => void
@@ -21,12 +25,14 @@ interface Props {
 
 type Mode = 'expense' | 'income'
 
-export const QuickAdd = forwardRef<HTMLInputElement, Props>(function QuickAdd({ expenses, currency, today, onAdd, onAddIncome }, inputRef) {
+export const QuickAdd = forwardRef<HTMLInputElement, Props>(function QuickAdd({ expenses, incomes, accounts, currency, today, onAdd, onAddIncome }, inputRef) {
   const { t, category: categoryName } = useI18n()
   const [mode, setMode] = useState<Mode>('expense')
   const [text, setText] = useState('')
   const [manualCategory, setManualCategory] = useState<CategoryId | null>(null)
   const [manualDate, setManualDate] = useState<string | null>(null)
+  /** undefined = use the default account; null = not linked. */
+  const [manualAccount, setManualAccount] = useState<string | null | undefined>(undefined)
   const [error, setError] = useState('')
   const [showDetails, setShowDetails] = useState(false)
 
@@ -36,11 +42,15 @@ export const QuickAdd = forwardRef<HTMLInputElement, Props>(function QuickAdd({ 
   const category: CategoryId = manualCategory ?? guessed ?? 'other'
   const date = manualDate ?? addDays(today, parsed.dayOffset)
   const favs = useMemo(() => favorites(expenses), [expenses])
+  const defaultExpenseAccount = useMemo(() => defaultAccountId(accounts, expenses, 'cash'), [accounts, expenses])
+  const defaultIncomeAccount = useMemo(() => defaultAccountId(accounts, incomes, 'bank'), [accounts, incomes])
+  const accountId = manualAccount === undefined ? (isIncome ? defaultIncomeAccount : defaultExpenseAccount) : (manualAccount ?? undefined)
 
   function reset() {
     setText('')
     setManualCategory(null)
     setManualDate(null)
+    setManualAccount(undefined)
     setError('')
     setShowDetails(false)
   }
@@ -53,9 +63,9 @@ export const QuickAdd = forwardRef<HTMLInputElement, Props>(function QuickAdd({ 
       return
     }
     if (isIncome) {
-      onAddIncome({ amount: parsed.amount, description: parsed.description || t('income'), date })
+      onAddIncome({ amount: parsed.amount, description: parsed.description || t('income'), date, accountId })
     } else {
-      onAdd({ amount: parsed.amount, description: parsed.description || categoryName(category), category, date })
+      onAdd({ amount: parsed.amount, description: parsed.description || categoryName(category), category, date, accountId })
     }
     reset()
   }
@@ -118,9 +128,8 @@ export const QuickAdd = forwardRef<HTMLInputElement, Props>(function QuickAdd({ 
             <span aria-hidden="true">{icon}</span> <strong>{label}</strong>
             {' · '}
             {parsed.amount !== null ? (
-              <span className={isIncome ? 'income-text' : ''}>
-                {isIncome ? '+' : ''}
-                {formatMoney(parsed.amount, currency)}
+              <span className={isIncome ? 'income-text' : 'danger-text'}>
+                {isIncome ? formatEarn(parsed.amount, currency) : formatSpend(parsed.amount, currency)}
               </span>
             ) : (
               <em>{t('noAmountYet')}</em>
@@ -153,6 +162,36 @@ export const QuickAdd = forwardRef<HTMLInputElement, Props>(function QuickAdd({ 
             </label>
           </div>
         )}
+        {accounts.length > 0 && (
+          <div className="accounts-row">
+            <span className="favorites-label">{t(isIncome ? 'paidInto' : 'paidFrom')}</span>
+            <div className="chips" role="radiogroup" aria-label={t(isIncome ? 'paidInto' : 'paidFrom')}>
+              {accounts.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={accountId === a.id}
+                  className={`chip chip-small${accountId === a.id ? ' chip-on' : ''}`}
+                  style={{ ['--chip' as string]: getAssetKind(a.kind).color }}
+                  onClick={() => setManualAccount(a.id)}
+                >
+                  <span aria-hidden="true">{getAssetKind(a.kind).emoji}</span> {a.name}{' '}
+                  <span className={a.value < 0 ? 'danger-text' : 'muted'}>{formatMoney(a.value, currency)}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={accountId === undefined}
+                className={`chip chip-small${accountId === undefined ? ' chip-on' : ''}`}
+                onClick={() => setManualAccount(null)}
+              >
+                {t('noAccount')}
+              </button>
+            </div>
+          </div>
+        )}
       </form>
 
       {mode === 'expense' && favs.length > 0 && (
@@ -166,9 +205,9 @@ export const QuickAdd = forwardRef<HTMLInputElement, Props>(function QuickAdd({ 
                   key={`${f.description}|${f.amount}`}
                   type="button"
                   className="chip"
-                  onClick={() => onAdd({ amount: f.amount, description: f.description, category: f.category, date: today })}
+                  onClick={() => onAdd({ amount: f.amount, description: f.description, category: f.category, date: today, accountId: defaultExpenseAccount })}
                 >
-                  <span aria-hidden="true">{c.emoji}</span> {f.description} <span className="muted">{formatMoney(f.amount, currency)}</span>
+                  <span aria-hidden="true">{c.emoji}</span> {f.description} <span className="muted">{formatSpend(f.amount, currency)}</span>
                 </button>
               )
             })}

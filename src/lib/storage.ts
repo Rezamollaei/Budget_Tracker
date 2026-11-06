@@ -28,6 +28,7 @@ function toExpense(raw: unknown): Expense | null {
     category: isCategoryId(r.category) ? r.category : 'other',
     date: r.date,
     createdAt: typeof r.createdAt === 'number' ? r.createdAt : Date.now(),
+    ...(typeof r.accountId === 'string' && r.accountId ? { accountId: r.accountId } : {}),
   }
 }
 
@@ -42,6 +43,7 @@ function toIncome(raw: unknown): Income | null {
     description: typeof r.description === 'string' ? r.description : '',
     date: r.date,
     createdAt: typeof r.createdAt === 'number' ? r.createdAt : Date.now(),
+    ...(typeof r.accountId === 'string' && r.accountId ? { accountId: r.accountId } : {}),
   }
 }
 

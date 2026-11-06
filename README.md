@@ -40,6 +40,11 @@ Other commands:
   JSON backups. Import also reads `budget_data.json` from the old Python version.
 - **Income.** Switch the entry box to *Income*, or start with `+` (`+salary 2500`). Each month
   shows Income, Spent and Saved.
+- **Total money, always up to date.** Pick which account (Cash, Bank, Savings) each expense was
+  paid from or income went into; your last choice is pre-selected. Balances and the total at the
+  top of the page update automatically. Typing a balance in *What I own* sets it from that
+  moment on, so nothing is counted twice.
+- **Clear signs.** Spending shows as −€4.50 in red, income as +€2,500 in green.
 - **What I own.** Cash, bank accounts, savings, gold, investments and other items with their
   current value, plus your **Splitwise balance** (positive when friends owe you, negative when
   you owe) and loans/debts. Shows your total net worth and when each value was last updated.

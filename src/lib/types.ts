@@ -25,6 +25,8 @@ export interface Expense {
   /** Local calendar date, YYYY-MM-DD */
   date: string
   createdAt: number
+  /** The account (an Asset id) this was paid from, if linked. */
+  accountId?: string
 }
 
 export interface Income {
@@ -34,6 +36,8 @@ export interface Income {
   /** Local calendar date, YYYY-MM-DD */
   date: string
   createdAt: number
+  /** The account (an Asset id) this went into, if linked. */
+  accountId?: string
 }
 
 export type AssetKind = 'cash' | 'bank' | 'savings' | 'gold' | 'investment' | 'splitwise' | 'debt' | 'other'
@@ -48,6 +52,10 @@ export interface Asset {
   id: string
   name: string
   kind: AssetKind
+  /**
+   * The value you last typed in. For accounts, expenses and income linked to it
+   * and added after `updatedAt` are applied on top (see `withActivity`).
+   */
   value: number
   updatedAt: number
 }

@@ -51,7 +51,7 @@ export function AssetsView({ assets, currency, savedThisMonth, onOpen }: Props) 
     <main className="layout">
       <div className="col">
         <section className={`card summary${summary.total < 0 ? ' summary-over' : ''}`}>
-          <p className="summary-label">{t(summary.owing > 0 ? 'netWorth' : 'totalOwn')}</p>
+          <p className="summary-label">{t(summary.owing > 0 ? 'totalMoneyOwing' : 'totalMoney')}</p>
           <p className="summary-big">{signedMoney(summary.total)}</p>
           {summary.owing > 0 && (
             <dl className="flow">

@@ -1,5 +1,5 @@
 import type { MonthSummary } from '../lib/stats'
-import { formatMoney } from '../lib/money'
+import { formatMoney, formatSpend } from '../lib/money'
 import { useI18n } from '../i18n'
 
 interface Props {
@@ -22,7 +22,7 @@ function MonthFlow({ summary, currency }: { summary: MonthSummary; currency: str
       </div>
       <div>
         <dt>{t('flowSpent')}</dt>
-        <dd>{money(summary.spent)}</dd>
+        <dd className="danger-text">{formatSpend(summary.spent, currency)}</dd>
       </div>
       <div>
         <dt>{t(negative ? 'flowOverspent' : 'flowSaved')}</dt>

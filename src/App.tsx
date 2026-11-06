@@ -3,7 +3,9 @@ import type { AppState, Asset, CategoryId, Expense, Income } from './lib/types'
 import { emptyState, loadState, mergeStates, newId, parseImport, saveState, STORAGE_EVENT_KEY } from './lib/storage'
 import { formatMonth, monthKey, shiftMonth, todayISO } from './lib/dates'
 import { budgetFor, summarizeMonth, toEntries, type Entry } from './lib/stats'
-import { formatMoney } from './lib/money'
+import { formatEarn, formatSpend } from './lib/money'
+import { isAccount, withActivity } from './lib/assets'
+import { TotalBar } from './components/TotalBar'
 import { downloadFile, toCSV } from './lib/csv'
 import { QuickAdd, type NewExpense, type NewIncome } from './components/QuickAdd'
 import { Summary } from './components/Summary'
@@ -116,13 +118,15 @@ export default function App() {
     [state.expenses, state.incomes, today],
   )
   const isCurrentMonth = month === monthKey(today)
-  const money = (n: number) => formatMoney(n, state.currency)
+  // Account balances include expenses and income linked to them.
+  const assets = useMemo(() => withActivity(state.assets, state.expenses, state.incomes), [state.assets, state.expenses, state.incomes])
+  const accounts = useMemo(() => assets.filter(isAccount), [assets])
 
   function addExpense(input: NewExpense) {
     const expense: Expense = { ...input, id: newId(), createdAt: Date.now() }
     setState((s) => ({ ...s, expenses: [...s.expenses, expense] }))
     setMonth(monthKey(expense.date))
-    showToast(t('toastAdded', { name: expense.description, amount: money(expense.amount) }), {
+    showToast(t('toastAdded', { name: expense.description, amount: formatSpend(expense.amount, state.currency) }), {
       label: t('undo'),
       run: () => setState((s) => ({ ...s, expenses: s.expenses.filter((e) => e.id !== expense.id) })),
     })
@@ -132,7 +136,7 @@ export default function App() {
     const income: Income = { ...input, id: newId(), createdAt: Date.now() }
     setState((s) => ({ ...s, incomes: [...s.incomes, income] }))
     setMonth(monthKey(income.date))
-    showToast(t('toastAddedIncome', { name: income.description, amount: money(income.amount) }), {
+    showToast(t('toastAddedIncome', { name: income.description, amount: formatEarn(income.amount, state.currency) }), {
       label: t('undo'),
       run: () => setState((s) => ({ ...s, incomes: s.incomes.filter((i) => i.id !== income.id) })),
     })
@@ -171,7 +175,7 @@ export default function App() {
     } else {
       const asset: Asset = { ...input, id: newId(), updatedAt }
       setState((s) => ({ ...s, assets: [...s.assets, asset] }))
-      showToast(t('toastAdded', { name: asset.name, amount: money(asset.value) }))
+      showToast(t('toastUpdated', { name: asset.name }))
     }
     setAssetDraft(null)
   }
@@ -289,9 +293,10 @@ export default function App() {
               </button>
             )}
           </nav>
+          <TotalBar assets={assets} currency={state.currency} onOpen={() => switchTab('own')} />
           <main className="layout">
             <div className="col">
-              <QuickAdd ref={inputRef} expenses={state.expenses} currency={state.currency} today={today} onAdd={addExpense} onAddIncome={addIncome} />
+              <QuickAdd ref={inputRef} expenses={state.expenses} incomes={state.incomes} accounts={accounts} currency={state.currency} today={today} onAdd={addExpense} onAddIncome={addIncome} />
               <Summary summary={summary} currency={state.currency} isCurrentMonth={isCurrentMonth} onSetBudget={() => setSettingsOpen(true)} />
               <Breakdown summary={summary} currency={state.currency} selected={category} onSelect={setCategory} />
             </div>
@@ -302,14 +307,14 @@ export default function App() {
         </>
       ) : (
         <AssetsView
-          assets={state.assets}
+          assets={assets}
           currency={state.currency}
           savedThisMonth={thisMonth.income > 0 ? thisMonth.saved : null}
           onOpen={setAssetDraft}
         />
       )}
 
-      <EditDialog entry={editing} onClose={() => setEditing(null)} onSave={saveEntry} onDelete={deleteEntry} />
+      <EditDialog entry={editing} accounts={accounts} onClose={() => setEditing(null)} onSave={saveEntry} onDelete={deleteEntry} />
       <AssetDialog draft={assetDraft} onClose={() => setAssetDraft(null)} onSave={saveAsset} onDelete={deleteAsset} />
       <SettingsDialog
         open={settingsOpen}

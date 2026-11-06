@@ -17,6 +17,9 @@ interface Props {
 }
 
 const HINTS: Partial<Record<AssetKind, MessageKey>> = {
+  cash: 'hint.account',
+  bank: 'hint.account',
+  savings: 'hint.account',
   splitwise: 'hint.splitwise',
   debt: 'hint.debt',
   gold: 'hint.gold',

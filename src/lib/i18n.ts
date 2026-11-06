@@ -18,7 +18,7 @@ const en = {
   saveFailed: 'Your browser isn’t letting this page save data (private mode or storage disabled). Changes will be lost when you close the tab.',
   undo: 'Undo',
   toastAdded: 'Added {name} · {amount}',
-  toastAddedIncome: 'Added income {name} · +{amount}',
+  toastAddedIncome: 'Added income {name} · {amount}',
   toastSaved: 'Saved',
   toastDeleted: 'Deleted {name}',
   toastUpdated: 'Updated {name}',
@@ -175,6 +175,16 @@ const en = {
   'when.months': '{n} months ago',
 
   csvHeader: 'Date,Type,Description,Category,Amount',
+  paidFrom: 'Paid from',
+  paidInto: 'Received in',
+  noAccount: 'Not linked',
+  account: 'Account',
+  totalMoney: 'Total money',
+  totalMoneyOwing: 'Total money (what I own − what I owe)',
+  totalMoneyEmpty: 'Add your cash and bank balance to see your total money.',
+  addBalances: 'Add balances',
+  details: 'Details',
+  'hint.account': 'Expenses and income linked to this account change its balance automatically. Saving here sets the balance to this amount from now on.',
 }
 
 export type MessageKey = keyof typeof en
@@ -192,7 +202,7 @@ const it: Record<MessageKey, string> = {
   saveFailed: 'Il browser non permette di salvare i dati (navigazione privata o archiviazione disattivata). Le modifiche andranno perse alla chiusura della scheda.',
   undo: 'Annulla',
   toastAdded: 'Aggiunto {name} · {amount}',
-  toastAddedIncome: 'Entrata aggiunta: {name} · +{amount}',
+  toastAddedIncome: 'Entrata aggiunta: {name} · {amount}',
   toastSaved: 'Salvato',
   toastDeleted: 'Eliminato {name}',
   toastUpdated: 'Aggiornato {name}',
@@ -349,6 +359,16 @@ const it: Record<MessageKey, string> = {
   'when.months': '{n} mesi fa',
 
   csvHeader: 'Data,Tipo,Descrizione,Categoria,Importo',
+  paidFrom: 'Pagato con',
+  paidInto: 'Ricevuto su',
+  noAccount: 'Nessun conto',
+  account: 'Conto',
+  totalMoney: 'Totale soldi',
+  totalMoneyOwing: 'Totale soldi (ciò che ho − ciò che devo)',
+  totalMoneyEmpty: 'Aggiungi contanti e saldo del conto per vedere il totale dei tuoi soldi.',
+  addBalances: 'Aggiungi saldi',
+  details: 'Dettagli',
+  'hint.account': 'Le uscite e le entrate collegate a questo conto ne cambiano il saldo automaticamente. Salvando qui imposti il saldo a questo importo da adesso.',
 }
 
 const MESSAGES: Record<Lang, Record<MessageKey, string>> = { en, it }

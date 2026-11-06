@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { CategoryId } from '../lib/types'
+import type { Asset, CategoryId } from '../lib/types'
+import { getAssetKind } from '../lib/assets'
 import type { Entry } from '../lib/stats'
 import { amountForInput, parseAmount } from '../lib/money'
 import { CategoryPicker } from './CategoryPicker'
@@ -8,17 +9,19 @@ import { useI18n } from '../i18n'
 
 interface Props {
   entry: Entry | null
+  accounts: Asset[]
   onClose: () => void
   onSave: (e: Entry) => void
   onDelete: (e: Entry) => void
 }
 
-export function EditDialog({ entry, onClose, onSave, onDelete }: Props) {
+export function EditDialog({ entry, accounts, onClose, onSave, onDelete }: Props) {
   const { t } = useI18n()
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<CategoryId>('other')
   const [date, setDate] = useState('')
+  const [accountId, setAccountId] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -27,6 +30,7 @@ export function EditDialog({ entry, onClose, onSave, onDelete }: Props) {
     setDescription(entry.description)
     setCategory(entry.type === 'expense' ? entry.category : 'other')
     setDate(entry.date)
+    setAccountId(entry.accountId ?? '')
     setError('')
   }, [entry])
 
@@ -36,7 +40,7 @@ export function EditDialog({ entry, onClose, onSave, onDelete }: Props) {
     const value = parseAmount(amount)
     if (value === null) return setError(t('errAmount'))
     if (!date) return setError(t('errDate'))
-    const common = { amount: value, description: description.trim() || entry.description, date }
+    const common = { amount: value, description: description.trim() || entry.description, date, accountId: accountId || undefined }
     onSave(entry.type === 'expense' ? { ...entry, ...common, category } : { ...entry, ...common })
   }
 
@@ -57,6 +61,19 @@ export function EditDialog({ entry, onClose, onSave, onDelete }: Props) {
           {t('date')}
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
+        {(accounts.length > 0 || accountId) && (
+          <label>
+            {t(isIncome ? 'paidInto' : 'paidFrom')}
+            <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+              <option value="">{t('noAccount')}</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {getAssetKind(a.kind).emoji} {a.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         {!isIncome && (
           <div>
             <span className="field-label">{t('category')}</span>
