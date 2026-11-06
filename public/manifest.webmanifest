@@ -1,0 +1,10 @@
+{
+  "name": "Budget Tracker",
+  "short_name": "Budget",
+  "description": "A fast, private daily expense tracker.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f9",
+  "theme_color": "#4f46e5",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
