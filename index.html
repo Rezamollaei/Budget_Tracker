@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="A fast, private daily expense tracker. Type “coffee 4.50”, press Enter, done." />
+    <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>Budget Tracker</title>
+    <script>
+      // Apply the saved theme and language before the page paints, to avoid a flash.
+      try {
+        var p = JSON.parse(localStorage.getItem('budget-tracker:prefs') || '{}')
+        if (p.theme === 'light' || p.theme === 'dark') document.documentElement.setAttribute('data-theme', p.theme)
+        if (p.lang) document.documentElement.lang = p.lang
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
